@@ -199,7 +199,9 @@ public class TrendsLocationPreference extends Preference implements Constants, O
 			selector_builder.setNegativeButton(android.R.string.cancel, null);
 			mDialog = selector_builder.create();
 			final ListView lv = mDialog.getListView();
-			lv.setFastScrollEnabled(true);
+			if (lv != null) {
+				lv.setFastScrollEnabled(true);
+			}
 			mDialog.show();
 		}
 

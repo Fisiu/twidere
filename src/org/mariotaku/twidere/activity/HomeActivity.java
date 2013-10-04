@@ -24,8 +24,8 @@ import static org.mariotaku.twidere.util.Utils.cleanDatabasesByItemLimit;
 import static org.mariotaku.twidere.util.Utils.createFragmentForIntent;
 import static org.mariotaku.twidere.util.Utils.getAccountIds;
 import static org.mariotaku.twidere.util.Utils.getActivatedAccountIds;
+import static org.mariotaku.twidere.util.Utils.getAddedTabPosition;
 import static org.mariotaku.twidere.util.Utils.getDefaultAccountId;
-import static org.mariotaku.twidere.util.Utils.getHomeTabs;
 import static org.mariotaku.twidere.util.Utils.openDirectMessagesConversation;
 import static org.mariotaku.twidere.util.Utils.openSearch;
 
@@ -77,6 +77,7 @@ import org.mariotaku.twidere.model.SupportTabSpec;
 import org.mariotaku.twidere.provider.RecentSearchProvider;
 import org.mariotaku.twidere.util.ArrayUtils;
 import org.mariotaku.twidere.util.AsyncTwitterWrapper;
+import org.mariotaku.twidere.util.CustomTabUtils;
 import org.mariotaku.twidere.util.MathUtils;
 import org.mariotaku.twidere.util.MultiSelectEventHandler;
 import org.mariotaku.twidere.util.ThemeUtils;
@@ -84,7 +85,6 @@ import org.mariotaku.twidere.view.ExtendedViewPager;
 import org.mariotaku.twidere.view.TabPageIndicator;
 
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 
 public class HomeActivity extends DualPaneActivity implements OnClickListener, OnPageChangeListener,
@@ -119,7 +119,6 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 			final String action = intent.getAction();
 			if (BROADCAST_TASK_STATE_CHANGED.equals(action)) {
 				updateActionsButton();
-				// updateRefreshingState();
 			} else if (BROADCAST_ACCOUNT_LIST_DATABASE_UPDATED.equals(action)) {
 				notifyAccountsChanged();
 			}
@@ -167,7 +166,6 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		if (count == 0) {
 			showLeftPane();
 		}
-		// invalidateOptionsMenu();
 		updateActionsButton();
 	}
 
@@ -380,7 +378,7 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		ThemeUtils.applyBackground(mIndicator);
 		final boolean tab_display_label = res.getBoolean(R.bool.tab_display_label);
 		mPagerAdapter = new SupportTabsAdapter(this, getSupportFragmentManager(), mIndicator);
-		initTabs(getHomeTabs(this));
+		initTabs();
 		mViewPager.setAdapter(mPagerAdapter);
 		mViewPager.setOffscreenPageLimit(3);
 		mIndicator.setViewPager(mViewPager);
@@ -441,7 +439,7 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		sendBroadcast(new Intent(BROADCAST_HOME_ACTIVITY_ONSTART));
 		final IntentFilter filter = new IntentFilter(BROADCAST_TASK_STATE_CHANGED);
 		registerReceiver(mStateReceiver, filter);
-		final List<SupportTabSpec> tabs = getHomeTabs(this);
+		final List<SupportTabSpec> tabs = CustomTabUtils.getHomeTabs(this);
 		if (isTabsChanged(tabs)) {
 			restart();
 		}
@@ -470,6 +468,7 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 	}
 
 	private void clearNotification(final int position) {
+		if (mPagerAdapter == null || mTwitterWrapper == null) return;
 		final SupportTabSpec tab = mPagerAdapter.getTab(position);
 		if (classEquals(HomeTimelineFragment.class, tab.cls)) {
 			mTwitterWrapper.clearNotification(NOTIFICATION_ID_HOME_TIMELINE);
@@ -498,20 +497,21 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		}
 		final Bundle extras = intent.getExtras();
 		final boolean refresh_on_start = mPreferences.getBoolean(PREFERENCE_KEY_REFRESH_ON_START, false);
-		final long[] refreshed_ids = extras != null ? extras.getLongArray(INTENT_KEY_IDS) : null;
+		final long[] refreshed_ids = extras != null ? extras.getLongArray(EXTRA_IDS) : null;
 		if (refreshed_ids != null) {
 			mTwitterWrapper.refreshAll(refreshed_ids);
 		} else if (first_create && refresh_on_start) {
 			mTwitterWrapper.refreshAll();
 		}
 
-		int initial_tab = -1;
+		final int initial_tab;
 		if (extras != null) {
-			initial_tab = extras.getInt(INTENT_KEY_INITIAL_TAB, -1);
+			final int tab = extras.getInt(EXTRA_INITIAL_TAB, -1);
+			initial_tab = tab != -1 ? tab : getAddedTabPosition(this, extras.getString(EXTRA_TAB_TYPE));
 			if (initial_tab != -1 && mViewPager != null) {
 				clearNotification(initial_tab);
 			}
-			final Intent extra_intent = extras.getParcelable(INTENT_KEY_EXTRA_INTENT);
+			final Intent extra_intent = extras.getParcelable(EXTRA_EXTRA_INTENT);
 			if (extra_intent != null) {
 				if (isTwidereLink(extra_intent.getData()) && isDualPaneMode()) {
 					showFragment(createFragmentForIntent(this, extra_intent), true);
@@ -519,6 +519,8 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 					startActivity(extra_intent);
 				}
 			}
+		} else {
+			initial_tab = -1;
 		}
 		return initial_tab;
 	}
@@ -528,25 +530,18 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		return mTwitterWrapper.hasActivatedTask();
 	}
 
-	private void initTabs(final Collection<? extends SupportTabSpec> tabs) {
+	private void initTabs() {
+		final List<SupportTabSpec> tabs = CustomTabUtils.getHomeTabs(this);
 		mCustomTabs.clear();
 		mCustomTabs.addAll(tabs);
 		mPagerAdapter.clear();
-		int i = 0;
-		mPagerAdapter.addTab(HomeTimelineFragment.class, null, getString(R.string.home), R.drawable.ic_tab_home, i++);
-		mPagerAdapter
-				.addTab(MentionsFragment.class, null, getString(R.string.mentions), R.drawable.ic_tab_mention, i++);
-		mPagerAdapter.addTab(DirectMessagesFragment.class, null, getString(R.string.direct_messages),
-				R.drawable.ic_tab_message, i++);
-		mPagerAdapter.addTab(TrendsFragment.class, null, getString(R.string.trends), R.drawable.ic_tab_trends, i++);
-		// mPagerAdapter.addTabs(tabs);
+		mPagerAdapter.addTabs(tabs);
 	}
 
 	private boolean isTabsChanged(final List<SupportTabSpec> tabs) {
 		if (mCustomTabs.size() == 0 && tabs == null) return false;
 		if (mCustomTabs.size() != tabs.size()) return true;
-		final int size = mCustomTabs.size();
-		for (int i = 0; i < size; i++) {
+		for (int i = 0, size = mCustomTabs.size(); i < size; i++) {
 			if (!mCustomTabs.get(i).equals(tabs.get(i))) return true;
 		}
 		return false;
