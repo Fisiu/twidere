@@ -28,6 +28,7 @@ import static org.mariotaku.twidere.util.Utils.formatToLongTimeString;
 import static org.mariotaku.twidere.util.Utils.getAccountColor;
 import static org.mariotaku.twidere.util.Utils.getBiggerTwitterProfileImage;
 import static org.mariotaku.twidere.util.Utils.getDefaultTextSize;
+import static org.mariotaku.twidere.util.Utils.getDisplayName;
 import static org.mariotaku.twidere.util.Utils.getImagesInStatus;
 import static org.mariotaku.twidere.util.Utils.getMapStaticImageUri;
 import static org.mariotaku.twidere.util.Utils.getTwitterInstance;
@@ -71,6 +72,7 @@ import android.text.method.LinkMovementMethod;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
+import android.view.MenuItem.OnMenuItemClickListener;
 import android.view.View;
 import android.view.View.OnClickListener;
 import android.view.ViewGroup;
@@ -92,7 +94,6 @@ import de.keyboardsurfer.android.widget.crouton.CroutonStyle;
 import edu.ucdavis.earlybird.ProfilingUtil;
 
 import org.mariotaku.menubar.MenuBar;
-import org.mariotaku.menubar.MenuBar.OnMenuItemClickListener;
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.activity.ColorSelectorActivity;
 import org.mariotaku.twidere.adapter.ImagePreviewAdapter;
@@ -147,8 +148,8 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 	private ImageLoaderWrapper mImageLoader;
 	private Handler mHandler;
 
-	private TextView mNameView, mScreenNameView, mTextView, mTimeAndSourceView, mInReplyToView, mLocationView,
-			mRetweetedStatusView;
+	private TextView mNameView, mScreenNameView, mTextView, mTimeSourceView, mInReplyToView, mLocationView,
+			mRetweetView;
 	private ImageView mProfileImageView, mMapView;
 	private Button mFollowButton;
 	private View mMainContent, mFollowIndicator, mImagePreviewContainer, mGalleryContainer, mLocationContainer;
@@ -327,14 +328,14 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 				}
 				case MENU_FAVORITE: {
 					if (mStatus.is_favorite) {
-						mTwitterWrapper.destroyFavorite(mAccountId, mStatusId);
+						mTwitterWrapper.destroyFavoriteAsync(mAccountId, mStatusId);
 					} else {
 						mTwitterWrapper.createFavoriteAsync(mAccountId, mStatusId);
 					}
 					break;
 				}
 				case MENU_DELETE: {
-					mTwitterWrapper.destroyStatus(mAccountId, mStatusId);
+					mTwitterWrapper.destroyStatusAsync(mAccountId, mStatusId);
 					break;
 				}
 				case MENU_MUTE_SOURCE: {
@@ -424,6 +425,8 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 		updateUserColor();
 		mProfileView.drawEnd(getAccountColor(getActivity(), status.account_id));
 		final boolean nickname_only = mPreferences.getBoolean(PREFERENCE_KEY_NICKNAME_ONLY, false);
+		final boolean name_first = mPreferences.getBoolean(PREFERENCE_KEY_NAME_FIRST, true);
+		final boolean display_image_preview = mPreferences.getBoolean(PREFERENCE_KEY_DISPLAY_IMAGE_PREVIEW, false);
 		final String nick = getUserNickname(getActivity(), status.user_id, true);
 		mNameView.setText(TextUtils.isEmpty(nick) ? status.user_name : nickname_only ? nick : getString(
 				R.string.name_with_nickname, status.user_name, nick));
@@ -436,16 +439,17 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 		final String time = formatToLongTimeString(getActivity(), status.timestamp);
 		final String source_html = status.source;
 		if (!isEmpty(time) && !isEmpty(source_html)) {
-			mTimeAndSourceView.setText(Html.fromHtml(getString(R.string.time_source, time, source_html)));
+			mTimeSourceView.setText(Html.fromHtml(getString(R.string.time_source, time, source_html)));
 		} else if (isEmpty(time) && !isEmpty(source_html)) {
-			mTimeAndSourceView.setText(Html.fromHtml(getString(R.string.source, source_html)));
+			mTimeSourceView.setText(Html.fromHtml(getString(R.string.source, source_html)));
 		} else if (!isEmpty(time) && isEmpty(source_html)) {
-			mTimeAndSourceView.setText(time);
+			mTimeSourceView.setText(time);
 		}
-		mTimeAndSourceView.setMovementMethod(LinkMovementMethod.getInstance());
-		final boolean display_screen_name = NAME_DISPLAY_OPTION_SCREEN_NAME.equals(mPreferences.getString(
-				PREFERENCE_KEY_NAME_DISPLAY_OPTION, NAME_DISPLAY_OPTION_BOTH));
-		mInReplyToView.setText(getString(R.string.in_reply_to, "@" + status.in_reply_to_screen_name));
+		mTimeSourceView.setMovementMethod(LinkMovementMethod.getInstance());
+
+		final String in_reply_to = getDisplayName(getActivity(), status.in_reply_to_user_id, status.in_reply_to_name,
+				status.in_reply_to_screen_name, name_first, nickname_only, true);
+		mInReplyToView.setText(getString(R.string.in_reply_to, in_reply_to));
 
 		if (mPreferences.getBoolean(PREFERENCE_KEY_DISPLAY_PROFILE_IMAGE, true)) {
 			final boolean hires_profile_image = getResources().getBoolean(R.bool.hires_profile_image);
@@ -457,24 +461,24 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 		}
 		final List<PreviewImage> images = getImagesInStatus(status.text_html);
 		mImagePreviewContainer.setVisibility(images.isEmpty() ? View.GONE : View.VISIBLE);
-		final boolean display_image_preview = mPreferences.getBoolean(PREFERENCE_KEY_DISPLAY_IMAGE_PREVIEW, false);
 		if (display_image_preview) {
 			loadPreviewImages();
 		}
-		mRetweetedStatusView.setVisibility(!status.user_is_protected ? View.VISIBLE : View.GONE);
+		mRetweetView.setVisibility(!status.user_is_protected ? View.VISIBLE : View.GONE);
 		if (status.is_retweet && status.retweet_id > 0) {
-			final String name = display_screen_name ? status.retweeted_by_screen_name : status.retweeted_by_name;
+			final String retweeted_by = getDisplayName(getActivity(), status.retweeted_by_id, status.retweeted_by_name,
+					status.retweeted_by_screen_name, name_first, nickname_only, true);
 			if (status.retweet_count > 1) {
-				mRetweetedStatusView
-						.setText(getString(R.string.retweeted_by_with_count, name, status.retweet_count - 1));
+				mRetweetView
+						.setText(getString(R.string.retweeted_by_with_count, retweeted_by, status.retweet_count - 1));
 			} else {
-				mRetweetedStatusView.setText(getString(R.string.retweeted_by, name));
+				mRetweetView.setText(getString(R.string.retweeted_by, retweeted_by));
 			}
 		} else {
 			if (status.retweet_count > 0) {
-				mRetweetedStatusView.setText(getString(R.string.retweeted_by_count, status.retweet_count));
+				mRetweetView.setText(getString(R.string.retweeted_by_count, status.retweet_count));
 			} else {
-				mRetweetedStatusView.setText(R.string.users_retweeted_this);
+				mRetweetView.setText(R.string.users_retweeted_this);
 			}
 		}
 		final ParcelableLocation location = status.location;
@@ -545,7 +549,7 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 		mFollowButton.setOnClickListener(this);
 		mProfileView.setOnClickListener(this);
 		mLocationContainer.setOnClickListener(this);
-		mRetweetedStatusView.setOnClickListener(this);
+		mRetweetView.setOnClickListener(this);
 		mMenuBar.setOnMenuItemClickListener(mMenuItemClickListener);
 		getStatus(false);
 		mImagePreviewGallery.setAdapter(mImagePreviewAdapter);
@@ -579,7 +583,7 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 				break;
 			}
 			case R.id.follow: {
-				mTwitterWrapper.createFriendship(mAccountId, mStatus.user_id);
+				mTwitterWrapper.createFriendshipAsync(mAccountId, mStatus.user_id);
 				break;
 			}
 			case R.id.in_reply_to: {
@@ -637,12 +641,12 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 		mLocationContainer = mStatusView.findViewById(R.id.location_container);
 		mLocationView = (TextView) mStatusView.findViewById(R.id.location_view);
 		mMapView = (ImageView) mStatusView.findViewById(R.id.map_view);
-		mRetweetedStatusView = (TextView) mStatusView.findViewById(R.id.retweet_view);
+		mRetweetView = (TextView) mStatusView.findViewById(R.id.retweet_view);
 		mNameView = (TextView) mStatusView.findViewById(R.id.name);
 		mScreenNameView = (TextView) mStatusView.findViewById(R.id.screen_name);
 		mTextView = (TextView) mStatusView.findViewById(R.id.text);
 		mProfileImageView = (ImageView) mStatusView.findViewById(R.id.profile_image);
-		mTimeAndSourceView = (TextView) mStatusView.findViewById(R.id.time_source);
+		mTimeSourceView = (TextView) mStatusView.findViewById(R.id.time_source);
 		mInReplyToView = (TextView) mStatusView.findViewById(R.id.in_reply_to);
 		mFollowButton = (Button) mStatusView.findViewById(R.id.follow);
 		mFollowIndicator = mStatusView.findViewById(R.id.follow_indicator);
@@ -726,13 +730,13 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 		registerReceiver(mStatusReceiver, filter);
 		updateUserColor();
 		final int text_size = mPreferences.getInt(PREFERENCE_KEY_TEXT_SIZE, getDefaultTextSize(getActivity()));
-		mNameView.setTextSize(text_size * 1.25f);
 		mTextView.setTextSize(text_size * 1.25f);
+		mNameView.setTextSize(text_size * 1.25f);
 		mScreenNameView.setTextSize(text_size * 0.85f);
-		mTimeAndSourceView.setTextSize(text_size * 0.85f);
+		mTimeSourceView.setTextSize(text_size * 0.85f);
 		mInReplyToView.setTextSize(text_size * 0.85f);
 		mLocationView.setTextSize(text_size * 0.85f);
-		mRetweetedStatusView.setTextSize(text_size * 0.85f);
+		mRetweetView.setTextSize(text_size * 0.85f);
 	}
 
 	@Override

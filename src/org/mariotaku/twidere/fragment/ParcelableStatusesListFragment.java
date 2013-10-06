@@ -93,6 +93,11 @@ public abstract class ParcelableStatusesListFragment extends BaseStatusesListFra
 	}
 
 	@Override
+	public String getPullToRefreshTag() {
+		return getPositionKey();
+	}
+
+	@Override
 	public final int getStatuses(final long[] account_ids, final long[] max_ids, final long[] since_ids) {
 		mStatusesRestored = true;
 		final long max_id = max_ids != null && max_ids.length == 1 ? max_ids[0] : -1;
@@ -102,10 +107,6 @@ public abstract class ParcelableStatusesListFragment extends BaseStatusesListFra
 		args.putLong(EXTRA_SINCE_ID, since_id);
 		getLoaderManager().restartLoader(0, args, this);
 		return -1;
-	}
-
-	public boolean isLoaderUsed() {
-		return true;
 	}
 
 	@Override
@@ -123,9 +124,7 @@ public abstract class ParcelableStatusesListFragment extends BaseStatusesListFra
 
 	@Override
 	public final Loader<List<ParcelableStatus>> onCreateLoader(final int id, final Bundle args) {
-		if (isLoaderUsed()) {
-			setProgressBarIndeterminateVisibility(true);
-		}
+		setProgressBarIndeterminateVisibility(true);
 		final List<ParcelableStatus> data = getData();
 		if (isInstanceStateSaved() && data != null && !mStatusesRestored)
 			return new DummyParcelableStatusesLoader(getActivity(), data);
@@ -184,6 +183,12 @@ public abstract class ParcelableStatusesListFragment extends BaseStatusesListFra
 	public void onStop() {
 		unregisterReceiver(mStateReceiver);
 		super.onStop();
+	}
+
+	@Override
+	public void setProgressBarIndeterminateVisibility(final boolean visible) {
+		super.setProgressBarIndeterminateVisibility(visible);
+		setRefreshing(visible);
 	}
 
 	@Override

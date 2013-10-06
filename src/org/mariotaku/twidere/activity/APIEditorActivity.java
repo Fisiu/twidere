@@ -43,7 +43,7 @@ import org.mariotaku.twidere.provider.TweetStore.Accounts;
 
 import twitter4j.TwitterConstants;
 
-public class EditAPIActivity extends BaseSupportDialogActivity implements TwitterConstants, OnCheckedChangeListener,
+public class APIEditorActivity extends BaseSupportDialogActivity implements TwitterConstants, OnCheckedChangeListener,
 		OnClickListener {
 
 	private EditText mEditRestBaseURL, mEditSigningRESTBaseURL, mEditOAuthBaseURL, mEditSigningOAuthBaseURL;
@@ -177,7 +177,7 @@ public class EditAPIActivity extends BaseSupportDialogActivity implements Twitte
 	@Override
 	protected void onCreate(final Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.edit_api);
+		setContentView(R.layout.api_editor);
 		final Bundle extras = getIntent().getExtras();
 		if (savedInstanceState != null) {
 			mRestBaseURL = savedInstanceState.getString(Accounts.REST_BASE_URL);

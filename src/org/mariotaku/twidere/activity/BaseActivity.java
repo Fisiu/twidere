@@ -152,7 +152,6 @@ public class BaseActivity extends BaseThemedActivity implements Constants, PullT
 	@Override
 	protected void onCreate(final Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setActionBarBackground();
 		/**
 		 * Here we create a PullToRefreshAttacher manually without an Options
 		 * instance. PullToRefreshAttacher will manually create one using
@@ -198,10 +197,6 @@ public class BaseActivity extends BaseThemedActivity implements Constants, PullT
 			croutons.removeMessageCallback(this);
 		}
 		super.onStop();
-	}
-
-	private final void setActionBarBackground() {
-		getActionBar().setBackgroundDrawable(ThemeUtils.getActionBarBackground(this));
 	}
 
 }

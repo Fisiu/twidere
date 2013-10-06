@@ -1,5 +1,7 @@
 package org.mariotaku.twidere.util;
 
+import static org.mariotaku.twidere.util.CompareUtils.classEquals;
+
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.res.Resources;
@@ -12,10 +14,13 @@ import android.support.v4.app.Fragment;
 
 import org.mariotaku.twidere.Constants;
 import org.mariotaku.twidere.R;
+import org.mariotaku.twidere.fragment.ActivitiesAboutMeFragment;
+import org.mariotaku.twidere.fragment.ActivitiesByFriendsFragment;
+import org.mariotaku.twidere.fragment.DirectMessagesFragment;
 import org.mariotaku.twidere.fragment.HomeTimelineFragment;
 import org.mariotaku.twidere.fragment.MentionsFragment;
 import org.mariotaku.twidere.fragment.SearchStatusesFragment;
-import org.mariotaku.twidere.fragment.TrendsFragment;
+import org.mariotaku.twidere.fragment.TrendsSuggectionsFragment;
 import org.mariotaku.twidere.fragment.UserFavoritesFragment;
 import org.mariotaku.twidere.fragment.UserListTimelineFragment;
 import org.mariotaku.twidere.fragment.UserTimelineFragment;
@@ -37,19 +42,20 @@ public class CustomTabUtils implements Constants {
 	static {
 		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_HOME_TIMELINE, new CustomTabConfiguration(
 				HomeTimelineFragment.class, R.string.home, R.drawable.ic_tab_home, false,
-				CustomTabConfiguration.FIELD_TYPE_NONE, 0));
+				CustomTabConfiguration.FIELD_TYPE_NONE, 0, true));
 		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_MENTIONS_TIMELINE, new CustomTabConfiguration(
 				MentionsFragment.class, R.string.mentions, R.drawable.ic_tab_mention, false,
-				CustomTabConfiguration.FIELD_TYPE_NONE, 1));
+				CustomTabConfiguration.FIELD_TYPE_NONE, 1, true));
 		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_DIRECT_MESSAGES, new CustomTabConfiguration(
-				HomeTimelineFragment.class, R.string.direct_messages, R.drawable.ic_tab_message, false,
-				CustomTabConfiguration.FIELD_TYPE_NONE, 2));
-		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_TRENDS, new CustomTabConfiguration(TrendsFragment.class,
-				R.string.trends, R.drawable.ic_tab_trends, true, CustomTabConfiguration.FIELD_TYPE_NONE, 3));
+				DirectMessagesFragment.class, R.string.direct_messages, R.drawable.ic_tab_message, false,
+				CustomTabConfiguration.FIELD_TYPE_NONE, 2, true));
+		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_TRENDS_SUGGESTIONS, new CustomTabConfiguration(
+				TrendsSuggectionsFragment.class, R.string.trends, R.drawable.ic_tab_trends, false,
+				CustomTabConfiguration.FIELD_TYPE_NONE, 3));
 		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_FAVORITES, new CustomTabConfiguration(UserFavoritesFragment.class,
 				R.string.favorites, R.drawable.ic_tab_star, true, CustomTabConfiguration.FIELD_TYPE_USER, 4));
 		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_USER_TIMELINE, new CustomTabConfiguration(
-				UserTimelineFragment.class, R.string.statuses, R.drawable.ic_tab_list, true,
+				UserTimelineFragment.class, R.string.users_statuses, R.drawable.ic_tab_quote, true,
 				CustomTabConfiguration.FIELD_TYPE_USER, 5));
 		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_SEARCH_STATUSES, new CustomTabConfiguration(
 				SearchStatusesFragment.class, R.string.search_statuses, R.drawable.ic_tab_search, true,
@@ -57,6 +63,12 @@ public class CustomTabUtils implements Constants {
 		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_LIST_TIMELINE, new CustomTabConfiguration(
 				UserListTimelineFragment.class, R.string.list_timeline, R.drawable.ic_tab_list, true,
 				CustomTabConfiguration.FIELD_TYPE_USER_LIST, 7));
+		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_ACTIVITIES_ABOUT_ME, new CustomTabConfiguration(
+				ActivitiesAboutMeFragment.class, R.string.activities_about_me, R.drawable.ic_tab_person, true,
+				CustomTabConfiguration.FIELD_TYPE_NONE, 8));
+		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_ACTIVITIES_BY_FRIENDS, new CustomTabConfiguration(
+				ActivitiesByFriendsFragment.class, R.string.activities_by_friends, R.drawable.ic_tab_accounts, true,
+				CustomTabConfiguration.FIELD_TYPE_NONE, 9));
 
 		CUSTOM_TABS_ICON_NAME_MAP.put("accounts", R.drawable.ic_tab_accounts);
 		CUSTOM_TABS_ICON_NAME_MAP.put("fire", R.drawable.ic_tab_fire);
@@ -69,10 +81,12 @@ public class CustomTabUtils implements Constants {
 		CUSTOM_TABS_ICON_NAME_MAP.put("neko", R.drawable.ic_tab_neko);
 		CUSTOM_TABS_ICON_NAME_MAP.put("person", R.drawable.ic_tab_person);
 		CUSTOM_TABS_ICON_NAME_MAP.put("pin", R.drawable.ic_tab_pin);
+		CUSTOM_TABS_ICON_NAME_MAP.put("quote", R.drawable.ic_tab_quote);
 		CUSTOM_TABS_ICON_NAME_MAP.put("ribbon", R.drawable.ic_tab_ribbon);
 		CUSTOM_TABS_ICON_NAME_MAP.put("search", R.drawable.ic_tab_search);
 		CUSTOM_TABS_ICON_NAME_MAP.put("star", R.drawable.ic_tab_star);
 		CUSTOM_TABS_ICON_NAME_MAP.put("trends", R.drawable.ic_tab_trends);
+		CUSTOM_TABS_ICON_NAME_MAP.put("twidere", R.drawable.ic_tab_twidere);
 		CUSTOM_TABS_ICON_NAME_MAP.put("twitter", R.drawable.ic_tab_twitter);
 		// CUSTOM_TABS_ICON_NAME_MAP.put(ICON_SPECIAL_TYPE_CUSTOMIZE, -1);
 	}
@@ -82,6 +96,31 @@ public class CustomTabUtils implements Constants {
 			if (entry.getValue() == iconRes) return entry.getKey();
 		}
 		return null;
+	}
+
+	public static String findTabType(final Class<? extends Fragment> cls) {
+		for (final Entry<String, CustomTabConfiguration> entry : getConfiguraionMap().entrySet()) {
+			if (classEquals(cls, entry.getValue().getFragmentClass())) return entry.getKey();
+		}
+		return null;
+	}
+
+	public static int getAddedTabPosition(final Context context, final String type) {
+		if (context == null || type == null) return -1;
+		final ContentResolver resolver = context.getContentResolver();
+		final String where = Tabs.TYPE + " = ?";
+		final Cursor cur = resolver.query(Tabs.CONTENT_URI, new String[] { Tabs.POSITION }, where,
+				new String[] { type }, Tabs.DEFAULT_SORT_ORDER);
+		if (cur == null) return -1;
+		final int position;
+		if (cur.getCount() > 0) {
+			cur.moveToFirst();
+			position = cur.getInt(cur.getColumnIndex(Tabs.POSITION));
+		} else {
+			position = -1;
+		}
+		cur.close();
+		return position;
 	}
 
 	public static HashMap<String, CustomTabConfiguration> getConfiguraionMap() {
@@ -99,15 +138,17 @@ public class CustomTabUtils implements Constants {
 				.getColumnIndex(Tabs.TYPE), idx_arguments = cur.getColumnIndex(Tabs.ARGUMENTS), idx_position = cur
 				.getColumnIndex(Tabs.POSITION);
 		while (!cur.isAfterLast()) {
-			final int position = cur.getInt(idx_position);
-			final String icon_type = cur.getString(idx_icon);
 			final String type = cur.getString(idx_type);
-			final String name = cur.getString(idx_name);
-			final Bundle args = ParseUtils.jsonToBundle(cur.getString(idx_arguments));
-			args.putInt(EXTRA_TAB_POSITION, position);
-			final Class<? extends Fragment> fragment = getTabConfiguration(type).getFragmentClass();
-			if (name != null && fragment != null) {
-				tabs.add(new SupportTabSpec(name, getTabIconObject(icon_type), fragment, args, position));
+			final CustomTabConfiguration conf = getTabConfiguration(type);
+			if (conf != null) {
+				final int position = cur.getInt(idx_position);
+				final String icon_type = cur.getString(idx_icon);
+				final String name = cur.getString(idx_name);
+				final Bundle args = ParseUtils.jsonToBundle(cur.getString(idx_arguments));
+				args.putInt(EXTRA_TAB_POSITION, position);
+				final Class<? extends Fragment> fragment = conf.getFragmentClass();
+				tabs.add(new SupportTabSpec(name != null ? name : getTabTypeName(context, type),
+						getTabIconObject(icon_type), fragment, args, position));
 			}
 			cur.moveToNext();
 		}
@@ -158,10 +199,34 @@ public class CustomTabUtils implements Constants {
 		}
 		return R.drawable.ic_tab_list;
 	}
+	
+
+	public static boolean isTabTypeValid(final String type) {
+		return type != null && CUSTOM_TABS_CONFIGURATION_MAP.containsKey(type);
+	}
 
 	public static String getTabTypeName(final Context context, final String type) {
 		if (context == null) return null;
-		final Integer res_id = getTabConfiguration(type).getDefaultTitle();
+		final CustomTabConfiguration conf = getTabConfiguration(type);
+		final Integer res_id = conf != null ? conf.getDefaultTitle() : null;
 		return res_id != null ? context.getString(res_id) : null;
+	}
+
+	public static boolean isSingleTab(final String type) {
+		if (type == null) return false;
+		final CustomTabConfiguration conf = getTabConfiguration(type);
+		return conf != null && conf.isSingleTab();
+	}
+
+	public static boolean isTabAdded(final Context context, final String type) {
+		if (context == null || type == null) return false;
+		final ContentResolver resolver = context.getContentResolver();
+		final String where = Tabs.TYPE + " = ?";
+		final Cursor cur = resolver.query(Tabs.CONTENT_URI, new String[0], where, new String[] { type },
+				Tabs.DEFAULT_SORT_ORDER);
+		if (cur == null) return false;
+		final boolean added = cur.getCount() > 0;
+		cur.close();
+		return added;
 	}
 }

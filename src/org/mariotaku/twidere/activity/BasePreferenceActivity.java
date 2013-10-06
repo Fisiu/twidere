@@ -55,13 +55,17 @@ class BasePreferenceActivity extends PreferenceActivity implements Constants, IT
 	@Override
 	protected void onResume() {
 		super.onResume();
-		if (isThemeChanged()) {
+		if (shouldRestartWhenThemeChanged() && isThemeChanged()) {
 			restart();
 		}
 	}
 
 	protected final void restart() {
 		restartActivity(this);
+	}
+
+	protected boolean shouldRestartWhenThemeChanged() {
+		return true;
 	}
 
 	private final boolean isThemeChanged() {
