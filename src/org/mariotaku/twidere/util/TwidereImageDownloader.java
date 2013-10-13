@@ -34,6 +34,7 @@ import android.net.Uri;
 import com.nostra13.universalimageloader.core.download.ImageDownloader;
 
 import org.mariotaku.twidere.Constants;
+import org.mariotaku.twidere.model.PreviewMedia;
 
 import twitter4j.TwitterException;
 import twitter4j.http.HttpClientWrapper;
@@ -91,30 +92,14 @@ public class TwidereImageDownloader implements ImageDownloader, Constants {
 
 	@Override
 	public InputStream getStream(final String uri_string, final Object extras) throws IOException {
-		final InputStream is;
 		if (uri_string == null) return null;
 		final Uri uri = Uri.parse(uri_string);
 		final String scheme = uri.getScheme();
+		if (ContentResolver.SCHEME_ANDROID_RESOURCE.equals(scheme) || ContentResolver.SCHEME_CONTENT.equals(scheme)
+				|| ContentResolver.SCHEME_FILE.equals(scheme)) return mResolver.openInputStream(uri);
+		final PreviewMedia media = MediaPreviewUtils.getAllAvailableImage(uri_string);
 		try {
-			if (ContentResolver.SCHEME_ANDROID_RESOURCE.equals(scheme) || ContentResolver.SCHEME_CONTENT.equals(scheme)
-					|| ContentResolver.SCHEME_FILE.equals(scheme)) return mResolver.openInputStream(uri);
-			if (mFastImageLoading) {
-				final URL url = new URL(uri_string);
-				final HttpURLConnection conn = (HttpURLConnection) (mProxy != null ? url.openConnection(mProxy) : url
-						.openConnection());
-				if (conn instanceof HttpsURLConnection) {
-					((HttpsURLConnection) conn).setHostnameVerifier(ALLOW_ALL_HOSTNAME_VERIFIER);
-					if (IGNORE_ERROR_SSL_FACTORY != null) {
-						((HttpsURLConnection) conn).setSSLSocketFactory(IGNORE_ERROR_SSL_FACTORY);
-					}
-				}
-				conn.setRequestProperty("User-Agent", mUserAgent);
-				conn.setInstanceFollowRedirects(true);
-				is = new ContentLengthInputStream(conn.getInputStream(), conn.getContentLength());
-			} else {
-				final HttpResponse resp = getRedirectedHttpResponse(mClient, uri_string);
-				is = new ContentLengthInputStream(resp.asStream(), (int) resp.getContentLength());
-			}
+			return getStream(media != null ? media.url : uri_string);
 		} catch (final TwitterException e) {
 			final int status_code = e.getStatusCode();
 			if (status_code != -1 && PATTERN_TWITTER_PROFILE_IMAGES.matcher(uri_string).matches()
@@ -123,7 +108,6 @@ public class TwidereImageDownloader implements ImageDownloader, Constants {
 						extras);
 			throw new IOException(String.format("Error downloading image %s, error code: %d", uri_string, status_code));
 		}
-		return is;
 	}
 
 	public void reloadConnectivitySettings() {
@@ -132,6 +116,26 @@ public class TwidereImageDownloader implements ImageDownloader, Constants {
 				PREFERENCE_KEY_FAST_IMAGE_LOADING, true);
 		mProxy = getProxy(mContext);
 		mUserAgent = generateBrowserUserAgent();
+	}
+
+	private ContentLengthInputStream getStream(final String uri_string) throws IOException, TwitterException {
+		if (mFastImageLoading) {
+			final URL url = new URL(uri_string);
+			final HttpURLConnection conn = (HttpURLConnection) (mProxy != null ? url.openConnection(mProxy) : url
+					.openConnection());
+			if (conn instanceof HttpsURLConnection) {
+				((HttpsURLConnection) conn).setHostnameVerifier(ALLOW_ALL_HOSTNAME_VERIFIER);
+				if (IGNORE_ERROR_SSL_FACTORY != null) {
+					((HttpsURLConnection) conn).setSSLSocketFactory(IGNORE_ERROR_SSL_FACTORY);
+				}
+			}
+			conn.setRequestProperty("User-Agent", mUserAgent);
+			conn.setInstanceFollowRedirects(true);
+			return new ContentLengthInputStream(conn.getInputStream(), conn.getContentLength());
+		} else {
+			final HttpResponse resp = getRedirectedHttpResponse(mClient, uri_string);
+			return new ContentLengthInputStream(resp.asStream(), (int) resp.getContentLength());
+		}
 	}
 
 	private static final class AllowAllHostnameVerifier implements HostnameVerifier {

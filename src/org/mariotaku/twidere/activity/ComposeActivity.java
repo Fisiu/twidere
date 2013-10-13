@@ -34,6 +34,7 @@ import static org.mariotaku.twidere.util.Utils.getAccountIds;
 import static org.mariotaku.twidere.util.Utils.getAccountName;
 import static org.mariotaku.twidere.util.Utils.getAccountScreenName;
 import static org.mariotaku.twidere.util.Utils.getDefaultTextSize;
+import static org.mariotaku.twidere.util.Utils.getDisplayName;
 import static org.mariotaku.twidere.util.Utils.getImageUploadStatus;
 import static org.mariotaku.twidere.util.Utils.getQuoteStatus;
 import static org.mariotaku.twidere.util.Utils.getShareStatus;
@@ -221,7 +222,7 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 				break;
 			}
 			case MENU_IMAGE: {
-				openImageDirectly(this, ParseUtils.parseString(mImageUri), null);
+				openImageDirectly(this, ParseUtils.parseString(mImageUri));
 				break;
 			}
 			case MENU_TOGGLE_SENSITIVE: {
@@ -408,7 +409,7 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 	@Override
 	public void onContentChanged() {
 		super.onContentChanged();
-		mColorIndicator = (AccountsColorFrameLayout) findViewById(R.id.account_colors);
+		mColorIndicator = (AccountsColorFrameLayout) findViewById(R.id.accounts_color);
 		mEditText = (EditText) findViewById(R.id.edit_text);
 		mTitleView = (TextView) findViewById(R.id.actionbar_title);
 		mSubtitleView = (TextView) findViewById(R.id.actionbar_subtitle);
@@ -544,7 +545,7 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 			final Bundle extras = intent.getExtras();
 			final int notification_id = extras != null ? extras.getInt(EXTRA_NOTIFICATION_ID, -1) : -1;
 			if (notification_id != -1) {
-				mTwitterWrapper.clearNotificationAsync(notification_id);
+				mTwitterWrapper.clearNotification(notification_id);
 			}
 			if (!handleIntent(action, extras)) {
 				handleDefaultIntent(intent);
@@ -683,7 +684,7 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		mEditText.setSelection(selection_end);
 		mAccountIds = draft.account_ids;
 		mImageUri = draft.media_uri != null ? Uri.parse(draft.media_uri) : null;
-		mAttachedImageType = draft.attached_image_type;
+		mAttachedImageType = draft.media_type;
 		mIsPossiblySensitive = draft.is_possibly_sensitive;
 		mInReplyToStatusId = draft.in_reply_to_status_id;
 		return true;
@@ -856,15 +857,16 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 	}
 
 	private boolean setComposeTitle(final String action) {
-		final boolean display_screen_name = !mPreferences.getBoolean(PREFERENCE_KEY_NAME_FIRST, true);
 		if (INTENT_ACTION_REPLY.equals(action)) {
 			if (mInReplyToStatus == null) return false;
-			setTitle(getString(R.string.reply_to, display_screen_name ? "@" + mInReplyToStatus.user_screen_name
-					: mInReplyToStatus.user_name));
+			final String display_name = getDisplayName(this, mInReplyToStatus.user_id, mInReplyToStatus.user_name,
+					mInReplyToStatus.user_screen_name);
+			setTitle(getString(R.string.reply_to, display_name));
 		} else if (INTENT_ACTION_QUOTE.equals(action)) {
 			if (mInReplyToStatus == null) return false;
-			setTitle(getString(R.string.quote_user, display_screen_name ? "@" + mInReplyToStatus.user_screen_name
-					: mInReplyToStatus.user_name));
+			final String display_name = getDisplayName(this, mInReplyToStatus.user_id, mInReplyToStatus.user_name,
+					mInReplyToStatus.user_screen_name);
+			setTitle(getString(R.string.quote_user, display_name));
 			mSubtitleView.setVisibility(mInReplyToStatus.user_is_protected
 					&& mInReplyToStatus.account_id != mInReplyToStatus.user_id ? View.VISIBLE : View.GONE);
 		} else if (INTENT_ACTION_EDIT_DRAFT.equals(action)) {
@@ -872,8 +874,9 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 			setTitle(R.string.edit_draft);
 		} else if (INTENT_ACTION_MENTION.equals(action)) {
 			if (mMentionUser == null) return false;
-			setTitle(getString(R.string.mention_user, display_screen_name ? "@" + mMentionUser.screen_name
-					: mMentionUser.name));
+			final String display_name = getDisplayName(this, mMentionUser.id, mMentionUser.name,
+					mMentionUser.screen_name);
+			setTitle(getString(R.string.mention_user, display_name));
 		} else if (INTENT_ACTION_REPLY_MULTIPLE.equals(action)) {
 			setTitle(R.string.reply);
 		} else if (Intent.ACTION_SEND.equals(action) || Intent.ACTION_SEND_MULTIPLE.equals(action)) {
@@ -982,9 +985,8 @@ public class ComposeActivity extends BaseSupportDialogActivity implements TextWa
 		final boolean link_to_quoted_tweet = mPreferences.getBoolean(PREFERENCE_KEY_LINK_TO_QUOTED_TWEET, true);
 		final long in_reply_to = !is_quote || link_to_quoted_tweet ? mInReplyToStatusId : -1;
 		final boolean possibly_sensitive = has_media && mIsPossiblySensitive;
-		final boolean delete_image = mAttachedImageType == ATTACHED_IMAGE_TYPE_PHOTO;
-		mTwitterWrapper.updateStatus(mAccountIds, text, status_loc, mImageUri, in_reply_to, possibly_sensitive,
-				delete_image);
+		mTwitterWrapper.updateStatusAsync(mAccountIds, text, status_loc, mImageUri, mAttachedImageType, in_reply_to,
+				possibly_sensitive);
 		if (mPreferences.getBoolean(PREFERENCE_KEY_NO_CLOSE_AFTER_TWEET_SENT, false)
 				&& (mInReplyToStatus == null || mInReplyToStatusId <= 0)) {
 			mAttachedImageType = ATTACHED_IMAGE_TYPE_NONE;

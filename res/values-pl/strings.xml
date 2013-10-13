@@ -26,7 +26,7 @@
   <string name="advanced">Zaawansowane</string>
   <string name="save">Zapisz</string>
   <string name="edit">Edytuj</string>
-  <string name="login_to_twitter">Zaloguj się do Twitter</string>
+
   <string name="edit_api">Edytuj API</string>
   <string name="home">Strona główna</string>
   <string name="mentions">Wzmianki</string>
@@ -36,7 +36,7 @@
   <string name="error_unknown_error">Nieznany błąd, prawdopodobnie błąd w aplikacji.</string>
   <string name="error_message">Błąd: <xliff:g id="message">%s</xliff:g></string>
   <string name="error_message_with_action">Błąd podczas <xliff:g id="action">%1$s</xliff:g>: <xliff:g id="message">%2$s</xliff:g></string>
-  <string name="error_message_rate_limit">Limit zapytań Twittera przekroczony podczas <xliff:g id="action">%1$s</xliff:g>, spróbuj ponownie za <xliff:g id="time">%2$s</xliff:g></string>
+  <string name="error_message_rate_limit_with_action">Limit zapytań Twittera przekroczony podczas <xliff:g id="action">%1$s</xliff:g>, spróbuj ponownie za <xliff:g id="time">%2$s</xliff:g></string>
   <string name="select_account">Wybierz konto</string>
   <string name="username">Nazwa użytkownika</string>
   <string name="password">Hasło</string>
@@ -216,7 +216,7 @@
   <string name="view_user_list">Zobacz listę użytkownika</string>
   <string name="uninstall">Odinstaluj</string>
   <string name="saved_searches">Zapisane wyniki wyszukiwania</string>
-  <string name="custom_tabs">Własne zakładki</string>
+
   <string name="default_tabs">Domyślne zakładki</string>
   <string name="add_tab">Dodaj zakładkę</string>
   <string name="tab_type">Typ zakładki</string>

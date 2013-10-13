@@ -49,8 +49,6 @@ import static org.mariotaku.twidere.util.Utils.showOkMessage;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.BroadcastReceiver;
-import android.content.ContentResolver;
-import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -89,8 +87,6 @@ import android.widget.ListView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
-import de.keyboardsurfer.android.widget.crouton.Crouton;
-import de.keyboardsurfer.android.widget.crouton.CroutonStyle;
 import edu.ucdavis.earlybird.ProfilingUtil;
 
 import org.mariotaku.menubar.MenuBar;
@@ -104,13 +100,11 @@ import org.mariotaku.twidere.loader.DummyParcelableStatusesLoader;
 import org.mariotaku.twidere.model.Panes;
 import org.mariotaku.twidere.model.ParcelableLocation;
 import org.mariotaku.twidere.model.ParcelableStatus;
-import org.mariotaku.twidere.model.PreviewImage;
+import org.mariotaku.twidere.model.PreviewMedia;
 import org.mariotaku.twidere.provider.TweetStore.Accounts;
-import org.mariotaku.twidere.provider.TweetStore.Filters;
 import org.mariotaku.twidere.util.AsyncTask;
 import org.mariotaku.twidere.util.AsyncTwitterWrapper;
 import org.mariotaku.twidere.util.ClipboardUtils;
-import org.mariotaku.twidere.util.HtmlEscapeHelper;
 import org.mariotaku.twidere.util.ImageLoaderWrapper;
 import org.mariotaku.twidere.util.OnLinkClickHandler;
 import org.mariotaku.twidere.util.ParseUtils;
@@ -338,16 +332,8 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 					mTwitterWrapper.destroyStatusAsync(mAccountId, mStatusId);
 					break;
 				}
-				case MENU_MUTE_SOURCE: {
-					final String source = HtmlEscapeHelper.toPlainText(mStatus.source);
-					if (source == null) return false;
-					final Uri uri = Filters.Sources.CONTENT_URI;
-					final ContentValues values = new ContentValues();
-					final ContentResolver resolver = getContentResolver();
-					values.put(Filters.VALUE, source);
-					resolver.delete(uri, Filters.VALUE + " = ?", new String[] { source });
-					resolver.insert(uri, values);
-					Crouton.showText(getActivity(), getString(R.string.source_muted, source), CroutonStyle.INFO);
+				case MENU_ADD_TO_FILTER: {
+					AddStatusFilterDialogFragment.show(getFragmentManager(), mStatus);
 					break;
 				}
 				case MENU_SET_COLOR: {
@@ -409,8 +395,8 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 			mAccountId = mStatus.account_id;
 			mStatusId = mStatus.id;
 		}
-		clearPreviewImages();
 		if (!status_unchanged) {
+			clearPreviewImages();
 			hidePreviewImages();
 		}
 		if (status == null || getActivity() == null) return;
@@ -459,7 +445,7 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 		} else {
 			mProfileImageView.setImageResource(R.drawable.ic_profile_image_default);
 		}
-		final List<PreviewImage> images = getImagesInStatus(status.text_html);
+		final List<PreviewMedia> images = getImagesInStatus(status.text_html);
 		mImagePreviewContainer.setVisibility(images.isEmpty() ? View.GONE : View.VISIBLE);
 		if (display_image_preview) {
 			loadPreviewImages();
@@ -681,11 +667,11 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 
 	@Override
 	public void onItemClick(final AdapterView<?> parent, final View view, final int position, final long id) {
-		final PreviewImage image = mImagePreviewAdapter.getItem(position);
+		final PreviewMedia image = mImagePreviewAdapter.getItem(position);
 		if (mStatus == null || image == null) return;
 		// UCD
 		ProfilingUtil.profile(getActivity(), mAccountId, "Large image click, " + mStatusId + ", " + image);
-		openImage(getActivity(), image.image_full_url, image.image_original_url, mStatus.is_possibly_sensitive);
+		openImage(getActivity(), image.original, mStatus.is_possibly_sensitive);
 	}
 
 	@Override
@@ -830,7 +816,7 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 		mLoadImagesIndicator.setVisibility(View.GONE);
 		mGalleryContainer.setVisibility(View.VISIBLE);
 		mImagePreviewAdapter.clear();
-		final List<PreviewImage> images = getImagesInStatus(mStatus.text_html);
+		final List<PreviewMedia> images = getImagesInStatus(mStatus.text_html);
 		mImagePreviewAdapter.addAll(images, mStatus.is_possibly_sensitive);
 		updateImageSelectButton(mImagePreviewGallery.getSelectedItemPosition());
 	}
@@ -1119,7 +1105,7 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 
 	static class ImagesAdapter extends BaseAdapter {
 
-		private final List<PreviewImage> mImages = new ArrayList<PreviewImage>();
+		private final List<PreviewMedia> mImages = new ArrayList<PreviewMedia>();
 		private final ImageLoaderWrapper mImageLoader;
 		private final LayoutInflater mInflater;
 
@@ -1128,7 +1114,7 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 			mInflater = LayoutInflater.from(context);
 		}
 
-		public boolean addAll(final Collection<? extends PreviewImage> images) {
+		public boolean addAll(final Collection<? extends PreviewMedia> images) {
 			final boolean ret = images != null && mImages.addAll(images);
 			notifyDataSetChanged();
 			return ret;
@@ -1145,13 +1131,13 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 		}
 
 		@Override
-		public PreviewImage getItem(final int position) {
+		public PreviewMedia getItem(final int position) {
 			return mImages.get(position);
 		}
 
 		@Override
 		public long getItemId(final int position) {
-			final PreviewImage spec = getItem(position);
+			final PreviewMedia spec = getItem(position);
 			return spec != null ? spec.hashCode() : 0;
 		}
 
@@ -1159,8 +1145,8 @@ public class StatusFragment extends ParcelableStatusesListFragment implements On
 		public View getView(final int position, final View convertView, final ViewGroup parent) {
 			final View view = convertView != null ? convertView : mInflater.inflate(R.layout.image_preview_item, null);
 			final ImageView image = (ImageView) view.findViewById(R.id.image);
-			final PreviewImage spec = getItem(position);
-			mImageLoader.displayPreviewImage(image, spec != null ? spec.image_preview_url : null);
+			final PreviewMedia spec = getItem(position);
+			mImageLoader.displayPreviewImage(image, spec != null ? spec.url : null);
 			return view;
 		}
 

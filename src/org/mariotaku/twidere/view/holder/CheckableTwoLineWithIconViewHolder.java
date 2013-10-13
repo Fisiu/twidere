@@ -17,16 +17,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-package org.mariotaku.twidere.model;
+package org.mariotaku.twidere.view.holder;
 
-import android.app.Fragment;
-import android.os.Bundle;
+import android.view.View;
+import android.widget.CheckBox;
 
-public class HomeTabSpec extends TabSpec {
+public final class CheckableTwoLineWithIconViewHolder extends TwoLineWithIconViewHolder {
 
-	public HomeTabSpec(final String name, final Integer icon, final Class<? extends Fragment> cls, final Bundle args,
-			final int position) {
-		super(name, icon, cls, args, position);
+	public final CheckBox checkbox;
+
+	public CheckableTwoLineWithIconViewHolder(final View view) {
+		super(view);
+		checkbox = (CheckBox) findViewById(android.R.id.checkbox);
 	}
-
 }

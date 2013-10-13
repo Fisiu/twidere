@@ -46,7 +46,6 @@ import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.adapter.iface.IStatusesAdapter;
 import org.mariotaku.twidere.app.TwidereApplication;
 import org.mariotaku.twidere.model.ParcelableStatus;
-import org.mariotaku.twidere.model.PreviewImage;
 import org.mariotaku.twidere.model.StatusCursorIndices;
 import org.mariotaku.twidere.util.ImageLoaderWrapper;
 import org.mariotaku.twidere.util.ImageLoadingHandler;
@@ -73,8 +72,8 @@ public class CursorStatusesAdapter extends SimpleCursorAdapter implements IStatu
 			mIndicateMyStatusDisabled, mIsLastItemFiltered, mFiltersEnabled, mAnimationEnabled;
 	private float mTextSize;
 	private int mLinkHighlightOption;
-	private boolean mFilterIgnoreSource, mFilterIgnoreScreenName, mFilterIgnoreTextHtml, mFilterIgnoreTextPlain,
-			mNicknameOnly, mDisplayNameFirst;
+	private boolean mFilterIgnoreUser, mFilterIgnoreSource, mFilterIgnoreTextHtml, mFilterIgnoreTextPlain,
+			mFilterRetweetedById, mNicknameOnly, mDisplayNameFirst;
 	private int mMaxAnimationPosition;
 
 	private StatusCursorIndices mIndices;
@@ -116,22 +115,22 @@ public class CursorStatusesAdapter extends SimpleCursorAdapter implements IStatu
 			final long retweeted_by_user_id = cursor.getLong(mIndices.retweeted_by_user_id);
 			final long in_reply_to_user_id = cursor.getLong(mIndices.in_reply_to_user_id);
 
-			final String retweeted_by_name = cursor.getString(mIndices.retweeted_by_name);
-			final String retweeted_by_screen_name = cursor.getString(mIndices.retweeted_by_screen_name);
+			final String retweeted_by_name = cursor.getString(mIndices.retweeted_by_user_name);
+			final String retweeted_by_screen_name = cursor.getString(mIndices.retweeted_by_user_screen_name);
 			final String text = mLinkHighlightOption != LINK_HIGHLIGHT_OPTION_CODE_NONE ? cursor
 					.getString(mIndices.text_html) : cursor.getString(mIndices.text_unescaped);
 			final String screen_name = cursor.getString(mIndices.user_screen_name);
 			final String name = cursor.getString(mIndices.user_name);
-			final String in_reply_to_name = cursor.getString(mIndices.in_reply_to_name);
-			final String in_reply_to_screen_name = cursor.getString(mIndices.in_reply_to_screen_name);
+			final String in_reply_to_name = cursor.getString(mIndices.in_reply_to_user_name);
+			final String in_reply_to_screen_name = cursor.getString(mIndices.in_reply_to_user_screen_name);
 			final String account_screen_name = getAccountScreenName(mContext, account_id);
-			final String image_preview_url = cursor.getString(mIndices.image_preview_url);
+			final String media_link = cursor.getString(mIndices.media_link);
 
 			// Tweet type (favorite/location/media)
 			final boolean is_favorite = cursor.getShort(mIndices.is_favorite) == 1;
 			final boolean has_location = !TextUtils.isEmpty(cursor.getString(mIndices.location));
 			final boolean is_possibly_sensitive = cursor.getInt(mIndices.is_possibly_sensitive) == 1;
-			final boolean has_media = image_preview_url != null;
+			final boolean has_media = media_link != null;
 
 			// User type (protected/verified)
 			final boolean is_verified = cursor.getShort(mIndices.is_verified) == 1;
@@ -204,9 +203,9 @@ public class CursorStatusesAdapter extends SimpleCursorAdapter implements IStatu
 					holder.image_preview.setImageDrawable(null);
 					holder.image_preview.setBackgroundResource(R.drawable.image_preview_nsfw);
 					holder.image_preview_progress.setVisibility(View.GONE);
-				} else if (!image_preview_url.equals(mImageLoadingHandler.getLoadingUri(holder.image_preview))) {
+				} else if (!media_link.equals(mImageLoadingHandler.getLoadingUri(holder.image_preview))) {
 					holder.image_preview.setBackgroundResource(0);
-					mImageLoader.displayPreviewImage(holder.image_preview, image_preview_url, mImageLoadingHandler);
+					mImageLoader.displayPreviewImage(holder.image_preview, media_link, mImageLoadingHandler);
 				}
 				holder.image_preview.setTag(position);
 			}
@@ -241,11 +240,11 @@ public class CursorStatusesAdapter extends SimpleCursorAdapter implements IStatu
 
 	@Override
 	public ParcelableStatus getLastStatus() {
-		final Cursor cur = getCursor();
-		if (cur == null || cur.getCount() == 0) return null;
-		cur.moveToLast();
-		final long account_id = cur.getLong(mIndices.account_id);
-		final long status_id = cur.getLong(mIndices.status_id);
+		final Cursor c = getCursor();
+		if (c == null || c.isClosed() || c.getCount() == 0) return null;
+		c.moveToLast();
+		final long account_id = c.getLong(mIndices.account_id);
+		final long status_id = c.getLong(mIndices.status_id);
 		return findStatusInDatabases(mContext, account_id, status_id);
 	}
 
@@ -300,13 +299,8 @@ public class CursorStatusesAdapter extends SimpleCursorAdapter implements IStatu
 		switch (view.getId()) {
 			case R.id.image_preview: {
 				final ParcelableStatus status = getStatus(position);
-				if (status == null) return;
-				final PreviewImage spec = PreviewImage.getAllAvailableImage(status.image_original_url);
-				if (spec != null) {
-					openImage(mContext, spec.image_full_url, spec.image_original_url, status.is_possibly_sensitive);
-				} else {
-					openImage(mContext, status.image_original_url, null, status.is_possibly_sensitive);
-				}
+				if (status == null || status.media_link == null) return;
+				openImage(mContext, status.media_link, status.is_possibly_sensitive);
 				break;
 			}
 			case R.id.my_profile_image:
@@ -388,11 +382,11 @@ public class CursorStatusesAdapter extends SimpleCursorAdapter implements IStatu
 	}
 
 	@Override
-	public void setIgnoredFilterFields(final boolean text_plain, final boolean text_html, final boolean screen_name,
-			final boolean source) {
+	public void setIgnoredFilterFields(final boolean user, final boolean text_plain, final boolean text_html,
+			final boolean source, final boolean retweeted_by_id) {
 		mFilterIgnoreTextPlain = text_plain;
 		mFilterIgnoreTextHtml = text_html;
-		mFilterIgnoreScreenName = screen_name;
+		mFilterIgnoreUser = user;
 		mFilterIgnoreSource = source;
 		rebuildFilterInfo();
 		notifyDataSetChanged();
@@ -460,15 +454,17 @@ public class CursorStatusesAdapter extends SimpleCursorAdapter implements IStatu
 	}
 
 	private void rebuildFilterInfo() {
-		final Cursor cursor = getCursor();
-		if (cursor != null && mIndices != null && cursor.getCount() > 0) {
-			if (cursor.getCount() > 0) {
-				cursor.moveToLast();
-				final String text_plain = mFilterIgnoreTextPlain ? null : cursor.getString(mIndices.text_plain);
-				final String text_html = mFilterIgnoreTextHtml ? null : cursor.getString(mIndices.text_html);
-				final String screen_name = mFilterIgnoreScreenName ? null : cursor.getString(mIndices.user_screen_name);
-				final String source = mFilterIgnoreSource ? null : cursor.getString(mIndices.source);
-				mIsLastItemFiltered = isFiltered(mDatabase, text_plain, text_html, screen_name, source);
+		final Cursor c = getCursor();
+		if (c != null && !c.isClosed() && mIndices != null && c.getCount() > 0) {
+			if (c.getCount() > 0) {
+				c.moveToLast();
+				final long user_id = mFilterIgnoreUser ? -1 : c.getLong(mIndices.user_id);
+				final String text_plain = mFilterIgnoreTextPlain ? null : c.getString(mIndices.text_plain);
+				final String text_html = mFilterIgnoreTextHtml ? null : c.getString(mIndices.text_html);
+				final String source = mFilterIgnoreSource ? null : c.getString(mIndices.source);
+				final long retweeted_by_id = mFilterRetweetedById ? -1 : c.getLong(mIndices.retweeted_by_user_id);
+				;
+				mIsLastItemFiltered = isFiltered(mDatabase, user_id, text_plain, text_html, source, retweeted_by_id);
 			} else {
 				mIsLastItemFiltered = false;
 			}

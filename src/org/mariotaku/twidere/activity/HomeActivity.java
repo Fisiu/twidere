@@ -49,7 +49,6 @@ import android.support.v4.app.FragmentManagerTrojan;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.view.ViewPager.OnPageChangeListener;
 import android.support.v4.widget.DrawerLayout;
-import android.util.Log;
 import android.util.SparseArray;
 import android.view.Gravity;
 import android.view.Menu;
@@ -60,6 +59,8 @@ import android.widget.FrameLayout;
 import android.widget.FrameLayout.LayoutParams;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
+
+import com.readystatesoftware.viewbadger.BadgeView;
 
 import edu.ucdavis.earlybird.ProfilingUtil;
 
@@ -80,6 +81,7 @@ import org.mariotaku.twidere.util.AsyncTwitterWrapper;
 import org.mariotaku.twidere.util.MathUtils;
 import org.mariotaku.twidere.util.MultiSelectEventHandler;
 import org.mariotaku.twidere.util.ThemeUtils;
+import org.mariotaku.twidere.util.UnreadCountUtils;
 import org.mariotaku.twidere.view.ExtendedViewPager;
 import org.mariotaku.twidere.view.TabPageIndicator;
 
@@ -120,6 +122,8 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 				updateActionsButton();
 			} else if (BROADCAST_ACCOUNT_LIST_DATABASE_UPDATED.equals(action)) {
 				notifyAccountsChanged();
+			} else if (BROADCAST_UNREAD_COUNT_UPDATED.equals(action)) {
+				updateUnreadCount();
 			}
 		}
 
@@ -328,6 +332,21 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 				&& ((BasePullToRefreshListFragment) f).triggerRefresh();
 	}
 
+	public void updateUnreadCount() {
+		if (mIndicator == null) return;
+		for (int i = 0, j = mIndicator.getTabCount(); i < j; i++) {
+			final BadgeView badge = (BadgeView) mIndicator.getTabItem(i).findViewById(R.id.unread_count);
+			final int count = UnreadCountUtils.getUnreadCount(this, i);
+			if (count > 0) {
+				badge.setCount(count);
+				badge.show();
+			} else {
+				badge.setCount(0);
+				badge.hide();
+			}
+		}
+	}
+
 	@Override
 	protected BasePullToRefreshListFragment getCurrentPullToRefreshFragment() {
 		if (mCurrentVisibleFragment instanceof BasePullToRefreshListFragment)
@@ -406,6 +425,8 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 			mTwitterWrapper.refreshAll();
 		}
 		showDataProfilingRequest();
+		initUnreadCount();
+		updateUnreadCount();
 	}
 
 	@Override
@@ -439,6 +460,8 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		mMultiSelectHandler.dispatchOnStart();
 		sendBroadcast(new Intent(BROADCAST_HOME_ACTIVITY_ONSTART));
 		final IntentFilter filter = new IntentFilter(BROADCAST_TASK_STATE_CHANGED);
+		filter.addAction(BROADCAST_ACCOUNT_LIST_DATABASE_UPDATED);
+		filter.addAction(BROADCAST_UNREAD_COUNT_UPDATED);
 		registerReceiver(mStateReceiver, filter);
 		final List<SupportTabSpec> tabs = getHomeTabs(this);
 		if (isTabsChanged(tabs)) {
@@ -472,16 +495,15 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		if (mPagerAdapter == null || mTwitterWrapper == null) return;
 		final SupportTabSpec tab = mPagerAdapter.getTab(position);
 		if (classEquals(HomeTimelineFragment.class, tab.cls)) {
-			mTwitterWrapper.clearNotificationAsync(NOTIFICATION_ID_HOME_TIMELINE);
+			mTwitterWrapper.clearNotification(NOTIFICATION_ID_HOME_TIMELINE);
 		} else if (classEquals(MentionsFragment.class, tab.cls)) {
-			mTwitterWrapper.clearNotificationAsync(NOTIFICATION_ID_MENTIONS);
+			mTwitterWrapper.clearNotification(NOTIFICATION_ID_MENTIONS);
 		} else if (classEquals(DirectMessagesFragment.class, tab.cls)) {
-			mTwitterWrapper.clearNotificationAsync(NOTIFICATION_ID_DIRECT_MESSAGES);
+			mTwitterWrapper.clearNotification(NOTIFICATION_ID_DIRECT_MESSAGES);
 		}
 	}
 
 	private int handleIntent(final Intent intent, final boolean first_create) {
-		Log.d(LOGTAG, String.format("Intent: %s", intent));
 		// Reset intent
 		setIntent(new Intent(this, HomeActivity.class));
 		final String action = intent.getAction();
@@ -539,6 +561,15 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		mPagerAdapter.addTabs(tabs);
 	}
 
+	private void initUnreadCount() {
+		for (int i = 0, j = mIndicator.getTabCount(); i < j; i++) {
+			final BadgeView badge = new BadgeView(this, mIndicator.getTabItem(i).findViewById(R.id.tab_item_content));
+			badge.setId(R.id.unread_count);
+			badge.setBadgePosition(BadgeView.POSITION_TOP_RIGHT);
+			badge.hide();
+		}
+	}
+
 	private boolean isTabsChanged(final List<SupportTabSpec> tabs) {
 		if (mCustomTabs.size() == 0 && tabs == null) return false;
 		if (mCustomTabs.size() != tabs.size()) return true;
@@ -592,27 +623,20 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 
 	private void updateActionsButton() {
 		if (mViewPager == null || mPagerAdapter == null) return;
-		final int action_icon, button_icon, title;
+		final int button_icon, title;
 		final int position = mViewPager.getCurrentItem();
 		final SupportTabSpec tab = mPagerAdapter.getTab(position);
-		final boolean light_action_bar = ThemeUtils.isLightActionBar(getCurrentThemeResource());
 		if (tab == null) {
 			title = R.string.compose;
-			action_icon = light_action_bar ? R.drawable.ic_action_status_compose_light
-					: R.drawable.ic_action_status_compose_dark;
 			button_icon = R.drawable.ic_menu_status_compose;
 		} else {
 			if (classEquals(DirectMessagesFragment.class, tab.cls)) {
-				action_icon = light_action_bar ? R.drawable.ic_action_compose_light : R.drawable.ic_action_compose_dark;
 				button_icon = R.drawable.ic_menu_compose;
 				title = R.string.compose;
 			} else if (classEquals(TrendsSuggectionsFragment.class, tab.cls)) {
-				action_icon = light_action_bar ? R.drawable.ic_action_search_light : R.drawable.ic_action_search_dark;
 				button_icon = android.R.drawable.ic_menu_search;
 				title = android.R.string.search_go;
 			} else {
-				action_icon = light_action_bar ? R.drawable.ic_action_status_compose_light
-						: R.drawable.ic_action_status_compose_dark;
 				button_icon = R.drawable.ic_menu_status_compose;
 				title = R.string.compose;
 			}
@@ -622,7 +646,7 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		final boolean has_task = hasActivatedTask();
 		final ImageView actions_icon = (ImageView) view.findViewById(R.id.actions_icon);
 		final ProgressBar progress = (ProgressBar) view.findViewById(R.id.progress);
-		actions_icon.setImageResource(mBottomActionsButton ? button_icon : action_icon);
+		actions_icon.setImageResource(mBottomActionsButton ? button_icon : button_icon);
 		actions_icon.setContentDescription(getString(title));
 		actions_icon.setVisibility(has_task ? View.GONE : View.VISIBLE);
 		progress.setVisibility(has_task ? View.VISIBLE : View.GONE);

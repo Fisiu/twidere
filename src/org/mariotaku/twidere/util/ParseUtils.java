@@ -106,13 +106,17 @@ public final class ParseUtils implements Constants {
 	}
 
 	public static long parseLong(final String source) {
-		if (source == null) return -1;
+		return parseLong(source, -1);
+	}
+
+	public static long parseLong(final String source, final long def) {
+		if (source == null) return def;
 		try {
 			return Long.parseLong(source);
 		} catch (final NumberFormatException e) {
 			// Wrong number format? Ignore them.
 		}
-		return -1;
+		return def;
 	}
 
 	public static String parseString(final Object object) {
@@ -135,7 +139,7 @@ public final class ParseUtils implements Constants {
 	}
 
 	private static boolean shouldPutLong(final String key) {
-		return EXTRA_ACCOUNT_ID.equals(key) || EXTRA_USER_ID.equals(key);
+		return EXTRA_ACCOUNT_ID.equals(key) || EXTRA_USER_ID.equals(key) || EXTRA_STATUS_ID.equals(key);
 	}
 
 }

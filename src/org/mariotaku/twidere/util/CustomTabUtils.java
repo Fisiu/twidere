@@ -51,7 +51,7 @@ public class CustomTabUtils implements Constants {
 				CustomTabConfiguration.FIELD_TYPE_NONE, 2, true));
 		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_TRENDS_SUGGESTIONS, new CustomTabConfiguration(
 				TrendsSuggectionsFragment.class, R.string.trends, R.drawable.ic_tab_trends, false,
-				CustomTabConfiguration.FIELD_TYPE_NONE, 3));
+				CustomTabConfiguration.FIELD_TYPE_NONE, 3, true));
 		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_FAVORITES, new CustomTabConfiguration(UserFavoritesFragment.class,
 				R.string.favorites, R.drawable.ic_tab_star, true, CustomTabConfiguration.FIELD_TYPE_USER, 4));
 		CUSTOM_TABS_CONFIGURATION_MAP.put(TAB_TYPE_USER_TIMELINE, new CustomTabConfiguration(
@@ -105,6 +105,47 @@ public class CustomTabUtils implements Constants {
 		return null;
 	}
 
+	public static SupportTabSpec getAddedHomeTabAt(final Context context, final int position) {
+		if (context == null || position < 0) return null;
+		final ContentResolver resolver = context.getContentResolver();
+		final Cursor cur = resolver.query(Tabs.CONTENT_URI, Tabs.COLUMNS, Tabs.POSITION + " = " + position, null,
+				Tabs.DEFAULT_SORT_ORDER);
+		final int idx_name = cur.getColumnIndex(Tabs.NAME), idx_icon = cur.getColumnIndex(Tabs.ICON), idx_type = cur
+				.getColumnIndex(Tabs.TYPE), idx_arguments = cur.getColumnIndex(Tabs.ARGUMENTS);
+		try {
+			if (cur.getCount() == 0) return null;
+			cur.moveToFirst();
+			final String type = cur.getString(idx_type);
+			final CustomTabConfiguration conf = getTabConfiguration(type);
+			if (conf == null) return null;
+			final String icon_type = cur.getString(idx_icon);
+			final String name = cur.getString(idx_name);
+			final Bundle args = ParseUtils.jsonToBundle(cur.getString(idx_arguments));
+			args.putInt(EXTRA_TAB_POSITION, position);
+			final Class<? extends Fragment> fragment = conf.getFragmentClass();
+			return new SupportTabSpec(name != null ? name : getTabTypeName(context, type), getTabIconObject(icon_type),
+					fragment, args, position);
+		} finally {
+			cur.close();
+		}
+	}
+
+	public static CustomTabConfiguration getAddedTabConfigurationAt(final Context context, final int position) {
+		if (context == null || position < 0) return null;
+		final ContentResolver resolver = context.getContentResolver();
+		final Cursor cur = resolver.query(Tabs.CONTENT_URI, Tabs.COLUMNS, Tabs.POSITION + " = " + position, null,
+				Tabs.DEFAULT_SORT_ORDER);
+		final int idx_type = cur.getColumnIndex(Tabs.TYPE);
+		try {
+			if (cur.getCount() == 0) return null;
+			cur.moveToFirst();
+			final String type = cur.getString(idx_type);
+			return getTabConfiguration(type);
+		} finally {
+			cur.close();
+		}
+	}
+
 	public static int getAddedTabPosition(final Context context, final String type) {
 		if (context == null || type == null) return -1;
 		final ContentResolver resolver = context.getContentResolver();
@@ -121,6 +162,21 @@ public class CustomTabUtils implements Constants {
 		}
 		cur.close();
 		return position;
+	}
+
+	public static String getAddedTabTypeAt(final Context context, final int position) {
+		if (context == null || position < 0) return null;
+		final ContentResolver resolver = context.getContentResolver();
+		final Cursor cur = resolver.query(Tabs.CONTENT_URI, Tabs.COLUMNS, Tabs.POSITION + " = " + position, null,
+				Tabs.DEFAULT_SORT_ORDER);
+		final int idx_type = cur.getColumnIndex(Tabs.TYPE);
+		try {
+			if (cur.getCount() == 0) return null;
+			cur.moveToFirst();
+			return cur.getString(idx_type);
+		} finally {
+			cur.close();
+		}
 	}
 
 	public static HashMap<String, CustomTabConfiguration> getConfiguraionMap() {
@@ -199,11 +255,6 @@ public class CustomTabUtils implements Constants {
 		}
 		return R.drawable.ic_tab_list;
 	}
-	
-
-	public static boolean isTabTypeValid(final String type) {
-		return type != null && CUSTOM_TABS_CONFIGURATION_MAP.containsKey(type);
-	}
 
 	public static String getTabTypeName(final Context context, final String type) {
 		if (context == null) return null;
@@ -228,5 +279,9 @@ public class CustomTabUtils implements Constants {
 		final boolean added = cur.getCount() > 0;
 		cur.close();
 		return added;
+	}
+
+	public static boolean isTabTypeValid(final String type) {
+		return type != null && CUSTOM_TABS_CONFIGURATION_MAP.containsKey(type);
 	}
 }

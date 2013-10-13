@@ -93,7 +93,9 @@ import de.keyboardsurfer.android.widget.crouton.CroutonConfiguration;
 import de.keyboardsurfer.android.widget.crouton.CroutonStyle;
 
 import org.apache.http.NameValuePair;
+import org.json.JSONArray;
 import org.mariotaku.gallery3d.ImageViewerGLActivity;
+import org.mariotaku.jsonserializer.JSONSerializer;
 import org.mariotaku.querybuilder.AllColumns;
 import org.mariotaku.querybuilder.Columns;
 import org.mariotaku.querybuilder.Columns.Column;
@@ -136,9 +138,10 @@ import org.mariotaku.twidere.fragment.UsersListFragment;
 import org.mariotaku.twidere.model.DirectMessageCursorIndices;
 import org.mariotaku.twidere.model.ParcelableDirectMessage;
 import org.mariotaku.twidere.model.ParcelableStatus;
+import org.mariotaku.twidere.model.ParcelableStatus.ParcelableUserMention;
 import org.mariotaku.twidere.model.ParcelableUser;
 import org.mariotaku.twidere.model.ParcelableUserList;
-import org.mariotaku.twidere.model.PreviewImage;
+import org.mariotaku.twidere.model.PreviewMedia;
 import org.mariotaku.twidere.model.StatusCursorIndices;
 import org.mariotaku.twidere.provider.TweetStore;
 import org.mariotaku.twidere.provider.TweetStore.Accounts;
@@ -244,6 +247,9 @@ public final class Utils implements Constants {
 		CONTENT_PROVIDER_URI_MATCHER.addURI(TweetStore.AUTHORITY, TABLE_PREFERENCES, VIRTUAL_TABLE_ID_ALL_PREFERENCES);
 		CONTENT_PROVIDER_URI_MATCHER.addURI(TweetStore.AUTHORITY, TABLE_PREFERENCES + "/*",
 				VIRTUAL_TABLE_ID_PREFERENCES);
+		CONTENT_PROVIDER_URI_MATCHER.addURI(TweetStore.AUTHORITY, TABLE_UNREAD_COUNTS + "/#",
+				VIRTUAL_TABLE_ID_UNREAD_COUNTS);
+		CONTENT_PROVIDER_URI_MATCHER.addURI(TweetStore.AUTHORITY, TABLE_UNREAD_COUNTS, VIRTUAL_TABLE_ID_UNREAD_COUNTS);
 
 		LINK_HANDLER_URI_MATCHER.addURI(AUTHORITY_STATUS, null, LINK_ID_STATUS);
 		LINK_HANDLER_URI_MATCHER.addURI(AUTHORITY_USER, null, LINK_ID_USER);
@@ -391,12 +397,12 @@ public final class Utils implements Constants {
 		}
 		builder.append(Statuses._ID + " NOT IN ( ");
 		builder.append("SELECT DISTINCT " + table + "." + Statuses._ID + " FROM " + table);
-		builder.append(" WHERE " + table + "." + Statuses.SCREEN_NAME + " IN ( SELECT " + TABLE_FILTERED_USERS + "."
-				+ Filters.Users.VALUE + " FROM " + TABLE_FILTERED_USERS + " )");
+		builder.append(" WHERE " + table + "." + Statuses.USER_ID + " IN ( SELECT " + TABLE_FILTERED_USERS + "."
+				+ Filters.Users.USER_ID + " FROM " + TABLE_FILTERED_USERS + " )");
 		// TODO
 		if (enable_in_rts) {
-			builder.append(" OR " + table + "." + Statuses.RETWEETED_BY_SCREEN_NAME + " IN ( SELECT "
-					+ TABLE_FILTERED_USERS + "." + Filters.Users.VALUE + " FROM " + TABLE_FILTERED_USERS + " )");
+			builder.append(" OR " + table + "." + Statuses.RETWEETED_BY_USER_ID + " IN ( SELECT "
+					+ TABLE_FILTERED_USERS + "." + Filters.Users.USER_ID + " FROM " + TABLE_FILTERED_USERS + " )");
 		}
 		builder.append(" AND " + table + "." + Statuses.IS_GAP + " IS NULL");
 		builder.append(" OR " + table + "." + Statuses.IS_GAP + " == 0");
@@ -1279,27 +1285,6 @@ public final class Utils implements Constants {
 		return ids;
 	}
 
-	public static boolean getAsBoolean(final ContentValues values, final String key, final boolean def) {
-		if (values == null || key == null) return def;
-		final Object value = values.get(key);
-		if (value == null) return def;
-		return Boolean.valueOf(value.toString());
-	}
-
-	public static long getAsInteger(final ContentValues values, final String key, final int def) {
-		if (values == null || key == null) return def;
-		final Object value = values.get(key);
-		if (value == null) return def;
-		return Integer.valueOf(value.toString());
-	}
-
-	public static long getAsLong(final ContentValues values, final String key, final long def) {
-		if (values == null || key == null) return def;
-		final Object value = values.get(key);
-		if (value == null) return def;
-		return Long.valueOf(value.toString());
-	}
-
 	public static String getBestBannerType(final int width) {
 		if (width <= 320)
 			return "mobile";
@@ -1458,6 +1443,11 @@ public final class Utils implements Constants {
 	}
 
 	public static String getDisplayName(final Context context, final long user_id, final String name,
+			final String screen_name, final boolean name_first, final boolean nickname_only) {
+		return getDisplayName(context, user_id, name, screen_name, name_first, nickname_only, false);
+	}
+
+	public static String getDisplayName(final Context context, final long user_id, final String name,
 			final String screen_name, final boolean name_first, final boolean nickname_only, final boolean ignore_cache) {
 		if (context == null) return null;
 		final String nick = getUserNickname(context, user_id, ignore_cache);
@@ -1466,6 +1456,26 @@ public final class Utils implements Constants {
 		if (!nick_available) return name_first && !isEmpty(name) ? name : "@" + screen_name;
 		return context.getString(R.string.name_with_nickname, name_first && !isEmpty(name) ? name : "@" + screen_name,
 				nick);
+	}
+
+	public static String getErrorMessage(final Context context, final CharSequence message) {
+		if (context == null) return ParseUtils.parseString(message);
+		if (isEmpty(message)) return context.getString(R.string.error_unknown_error);
+		return context.getString(R.string.error_message, message);
+	}
+
+	public static String getErrorMessage(final Context context, final CharSequence action, final CharSequence message) {
+		if (context == null || isEmpty(action)) return ParseUtils.parseString(message);
+		if (isEmpty(message)) return context.getString(R.string.error_unknown_error);
+		return context.getString(R.string.error_message_with_action, action, message);
+	}
+
+	public static String getErrorMessage(final Context context, final CharSequence action, final Throwable t) {
+		if (context == null) return null;
+		if (t instanceof TwitterException)
+			return getTwitterErrorMessage(context, action, (TwitterException) t);
+		else if (t != null) return getErrorMessage(context, trimLineBreak(t.getMessage()));
+		return context.getString(R.string.error_unknown_error);
 	}
 
 	public static String getErrorMessage(final Context context, final Throwable t) {
@@ -1557,13 +1567,13 @@ public final class Utils implements Constants {
 		return null;
 	}
 
-	public static List<PreviewImage> getImagesInStatus(final String status_string) {
+	public static List<PreviewMedia> getImagesInStatus(final String status_string) {
 		if (status_string == null) return Collections.emptyList();
-		final List<PreviewImage> images = new ArrayList<PreviewImage>();
+		final List<PreviewMedia> images = new ArrayList<PreviewMedia>();
 		final HtmlLinkExtractor extractor = new HtmlLinkExtractor();
 		extractor.grabLinks(status_string);
 		for (final HtmlLink link : extractor.grabLinks(status_string)) {
-			final PreviewImage spec = PreviewImage.getAllAvailableImage(link.getLink());
+			final PreviewMedia spec = MediaPreviewUtils.getAllAvailableImage(link.getLink());
 			if (spec != null) {
 				images.add(spec);
 			}
@@ -1962,6 +1972,32 @@ public final class Utils implements Constants {
 		return date.getTime();
 	}
 
+	public static String getTwitterErrorMessage(final Context context, final CharSequence action,
+			final TwitterException te) {
+		if (context == null) return null;
+		if (te == null) return context.getString(R.string.error_unknown_error);
+		if (te.exceededRateLimitation()) {
+			final RateLimitStatus status = te.getRateLimitStatus();
+			final long sec_until_reset = status.getSecondsUntilReset() * 1000;
+			final String next_reset_time = ParseUtils.parseString(getRelativeTimeSpanString(System.currentTimeMillis()
+					+ sec_until_reset));
+			if (isEmpty(action)) return context.getString(R.string.error_message_rate_limit, next_reset_time.trim());
+			return context.getString(R.string.error_message_rate_limit_with_action, action, next_reset_time.trim());
+		} else if (te.getErrorCode() > 0) {
+			final String msg = TwitterErrorCodes.getErrorMessage(context, te.getErrorCode());
+			return getErrorMessage(context, action, msg != null ? msg : trimLineBreak(te.getMessage()));
+		} else if (te.getCause() instanceof SSLException) {
+			final String msg = te.getCause().getMessage();
+			if (msg != null && msg.contains("!="))
+				return getErrorMessage(context, action, context.getString(R.string.ssl_error));
+			else
+				return getErrorMessage(context, action, context.getString(R.string.network_error));
+		} else if (te.getCause() instanceof IOException)
+			return getErrorMessage(context, action, context.getString(R.string.network_error));
+		else
+			return getErrorMessage(context, action, trimLineBreak(te.getMessage()));
+	}
+
 	public static String getTwitterErrorMessage(final Context context, final TwitterException te) {
 		if (te == null) return null;
 		final String msg = TwitterErrorCodes.getErrorMessage(context, te.getErrorCode());
@@ -2130,6 +2166,14 @@ public final class Utils implements Constants {
 		return nickname;
 	}
 
+	public static String getUserNickname(final Context context, final long user_id, final String name) {
+		final String nick = getUserNickname(context, user_id);
+		if (isEmpty(nick)) return name;
+		final boolean nickname_only = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
+				.getBoolean(PREFERENCE_KEY_NICKNAME_ONLY, false);
+		return nickname_only ? nick : context.getString(R.string.name_with_nickname, name, nick);
+	}
+
 	public static int getUserTypeIconRes(final boolean is_verified, final boolean is_protected) {
 		if (is_verified)
 			return R.drawable.ic_indicator_verified;
@@ -2196,15 +2240,15 @@ public final class Utils implements Constants {
 		return (info.flags & ApplicationInfo.FLAG_DEBUGGABLE) != 0;
 	}
 
-	public static boolean isFiltered(final SQLiteDatabase database, final ParcelableStatus status) {
-		if (status == null) return false;
-		return isFiltered(database, status.text_plain, status.text_html, status.user_screen_name, status.source);
+	public static boolean isFiltered(final SQLiteDatabase database, final long user_id, final String text_plain,
+			final String text_html, final String source, final long retweeted_by_id) {
+		return isFiltered(database, user_id, text_plain, text_html, source, retweeted_by_id, true);
 	}
 
-	public static boolean isFiltered(final SQLiteDatabase database, final String text_plain, final String text_html,
-			final String screen_name, final String source) {
+	public static boolean isFiltered(final SQLiteDatabase database, final long user_id, final String text_plain,
+			final String text_html, final String source, final long retweeted_by_id, final boolean filter_rts) {
 		if (database == null) return false;
-		if (text_plain == null && text_html == null && screen_name == null && source == null) return false;
+		if (text_plain == null && text_html == null && user_id <= 0 && source == null) return false;
 		final StringBuilder builder = new StringBuilder();
 		final List<String> selection_args = new ArrayList<String>();
 		builder.append("SELECT NULL WHERE");
@@ -2221,12 +2265,19 @@ public final class Utils implements Constants {
 			builder.append("(SELECT 1 IN (SELECT ? LIKE '%<a href=\"%'||" + TABLE_FILTERED_LINKS + "." + Filters.VALUE
 					+ "||'%\">%' FROM " + TABLE_FILTERED_LINKS + "))");
 		}
-		if (screen_name != null) {
+		if (user_id > 0) {
 			if (!selection_args.isEmpty()) {
 				builder.append(" OR ");
 			}
-			selection_args.add(screen_name);
-			builder.append("(SELECT ? IN (SELECT " + Filters.VALUE + " FROM " + TABLE_FILTERED_USERS + "))");
+			builder.append("(SELECT " + user_id + " IN (SELECT " + Filters.Users.USER_ID + " FROM "
+					+ TABLE_FILTERED_USERS + "))");
+		}
+		if (retweeted_by_id > 0) {
+			if (!selection_args.isEmpty()) {
+				builder.append(" OR ");
+			}
+			builder.append("(SELECT " + retweeted_by_id + " IN (SELECT " + Filters.Users.USER_ID + " FROM "
+					+ TABLE_FILTERED_USERS + "))");
 		}
 		if (source != null) {
 			if (!selection_args.isEmpty()) {
@@ -2244,6 +2295,13 @@ public final class Utils implements Constants {
 		} finally {
 			cur.close();
 		}
+	}
+
+	public static boolean isFiltered(final SQLiteDatabase database, final ParcelableStatus status,
+			final boolean filter_rts) {
+		if (status == null) return false;
+		return isFiltered(database, status.user_id, status.text_plain, status.text_html, status.source,
+				status.retweeted_by_id, filter_rts);
 	}
 
 	public static boolean isMyAccount(final Context context, final long account_id) {
@@ -2474,6 +2532,33 @@ public final class Utils implements Constants {
 		return values;
 	}
 
+	public static ContentValues makeFilterdUserContentValues(final ParcelableStatus status) {
+		if (status == null) return null;
+		final ContentValues values = new ContentValues();
+		values.put(Filters.Users.USER_ID, status.user_id);
+		values.put(Filters.Users.NAME, status.user_name);
+		values.put(Filters.Users.SCREEN_NAME, status.user_screen_name);
+		return values;
+	}
+
+	public static ContentValues makeFilterdUserContentValues(final ParcelableUser user) {
+		if (user == null) return null;
+		final ContentValues values = new ContentValues();
+		values.put(Filters.Users.USER_ID, user.id);
+		values.put(Filters.Users.NAME, user.name);
+		values.put(Filters.Users.SCREEN_NAME, user.screen_name);
+		return values;
+	}
+
+	public static ContentValues makeFilterdUserContentValues(final ParcelableUserMention user) {
+		if (user == null) return null;
+		final ContentValues values = new ContentValues();
+		values.put(Filters.Users.USER_ID, user.id);
+		values.put(Filters.Users.NAME, user.name);
+		values.put(Filters.Users.SCREEN_NAME, user.screen_name);
+		return values;
+	}
+
 	public static ContentValues makeStatusContentValues(final Status orig, final long account_id,
 			final boolean large_profile_image) {
 		if (orig == null || orig.getId() <= 0) return null;
@@ -2488,8 +2573,8 @@ public final class Utils implements Constants {
 			final User retweet_user = orig.getUser();
 			values.put(Statuses.RETWEET_ID, retweeted_status.getId());
 			values.put(Statuses.RETWEETED_BY_USER_ID, retweet_user.getId());
-			values.put(Statuses.RETWEETED_BY_NAME, retweet_user.getName());
-			values.put(Statuses.RETWEETED_BY_SCREEN_NAME, retweet_user.getScreenName());
+			values.put(Statuses.RETWEETED_BY_USER_NAME, retweet_user.getName());
+			values.put(Statuses.RETWEETED_BY_USER_SCREEN_NAME, retweet_user.getScreenName());
 			status = retweeted_status;
 		} else {
 			status = orig;
@@ -2500,11 +2585,11 @@ public final class Utils implements Constants {
 			final String profile_image_url = ParseUtils.parseString(user.getProfileImageUrlHttps());
 			final String name = user.getName(), screen_name = user.getScreenName();
 			values.put(Statuses.USER_ID, user_id);
-			values.put(Statuses.NAME, name);
-			values.put(Statuses.SCREEN_NAME, screen_name);
+			values.put(Statuses.USER_NAME, name);
+			values.put(Statuses.USER_SCREEN_NAME, screen_name);
 			values.put(Statuses.IS_PROTECTED, user.isProtected());
 			values.put(Statuses.IS_VERIFIED, user.isVerified());
-			values.put(Statuses.PROFILE_IMAGE_URL,
+			values.put(Statuses.USER_PROFILE_IMAGE_URL,
 					large_profile_image ? getBiggerTwitterProfileImage(profile_image_url) : profile_image_url);
 			values.put(CachedUsers.IS_FOLLOWING, user != null ? user.isFollowing() : false);
 		}
@@ -2518,8 +2603,8 @@ public final class Utils implements Constants {
 		values.put(Statuses.RETWEET_COUNT, status.getRetweetCount());
 		values.put(Statuses.IN_REPLY_TO_STATUS_ID, status.getInReplyToStatusId());
 		values.put(Statuses.IN_REPLY_TO_USER_ID, status.getInReplyToUserId());
-		values.put(Statuses.IN_REPLY_TO_NAME, getInReplyToName(status));
-		values.put(Statuses.IN_REPLY_TO_SCREEN_NAME, status.getInReplyToScreenName());
+		values.put(Statuses.IN_REPLY_TO_USER_NAME, getInReplyToName(status));
+		values.put(Statuses.IN_REPLY_TO_USER_SCREEN_NAME, status.getInReplyToScreenName());
 		values.put(Statuses.SOURCE, status.getSource());
 		values.put(Statuses.IS_POSSIBLY_SENSITIVE, status.isPossiblySensitive());
 		final GeoLocation location = status.getGeoLocation();
@@ -2528,8 +2613,10 @@ public final class Utils implements Constants {
 		}
 		values.put(Statuses.IS_RETWEET, is_retweet);
 		values.put(Statuses.IS_FAVORITE, status.isFavorited());
-		final PreviewImage preview = PreviewImage.getPreviewImage(text_html, true);
-		values.put(Statuses.IMAGE_PREVIEW_URL, preview != null ? preview.image_preview_url : null);
+		values.put(Statuses.MEDIA_LINK, MediaPreviewUtils.getSupportedFirstLink(status));
+		final JSONArray json = JSONSerializer.toJSONArray(ParcelableUserMention.fromUserMentionEntities(status
+				.getUserMentionEntities()));
+		values.put(Statuses.MENTIONS, json.toString());
 		return values;
 	}
 
@@ -2644,8 +2731,7 @@ public final class Utils implements Constants {
 		}
 	}
 
-	public static void openImage(final Context context, final String uri, final String orig,
-			final boolean is_possibly_sensitive) {
+	public static void openImage(final Context context, final String uri, final boolean is_possibly_sensitive) {
 		if (context == null || uri == null) return;
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
 		if (context instanceof FragmentActivity && is_possibly_sensitive
@@ -2655,23 +2741,17 @@ public final class Utils implements Constants {
 			final DialogFragment fragment = new SensitiveContentWarningDialogFragment();
 			final Bundle args = new Bundle();
 			args.putParcelable(EXTRA_URI, Uri.parse(uri));
-			if (orig != null) {
-				args.putParcelable(EXTRA_URI_ORIG, Uri.parse(orig));
-			}
 			fragment.setArguments(args);
 			fragment.show(fm, "sensitive_content_warning");
 		} else {
-			openImageDirectly(context, uri, orig);
+			openImageDirectly(context, uri);
 		}
 	}
 
-	public static void openImageDirectly(final Context context, final String uri, final String orig) {
+	public static void openImageDirectly(final Context context, final String uri) {
 		if (context == null || uri == null) return;
 		final Intent intent = new Intent(INTENT_ACTION_VIEW_IMAGE);
 		intent.setData(Uri.parse(uri));
-		if (orig != null) {
-			intent.putExtra(EXTRA_URI_ORIG, Uri.parse(orig));
-		}
 		intent.setClass(context, ImageViewerGLActivity.class);
 		context.startActivity(intent);
 	}
@@ -3440,6 +3520,20 @@ public final class Utils implements Constants {
 		item.setEnabled(available);
 	}
 
+	public static void setMenuItemIcon(final Menu menu, final int id, final int icon) {
+		if (menu == null) return;
+		final MenuItem item = menu.findItem(id);
+		if (item == null) return;
+		item.setIcon(icon);
+	}
+
+	public static void setMenuItemTitle(final Menu menu, final int id, final int icon) {
+		if (menu == null) return;
+		final MenuItem item = menu.findItem(id);
+		if (item == null) return;
+		item.setTitle(icon);
+	}
+
 	public static void setUserAgent(final Context context, final ConfigurationBuilder cb) {
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
 		final boolean gzip_compressing = prefs.getBoolean(PREFERENCE_KEY_GZIP_COMPRESSING, true);
@@ -3484,33 +3578,6 @@ public final class Utils implements Constants {
 
 	public static void showErrorMessage(final Context context, final CharSequence message, final boolean long_message) {
 		if (context == null) return;
-		final String text;
-		if (message != null) {
-			text = context.getString(R.string.error_message, message);
-		} else {
-			text = context.getString(R.string.error_unknown_error);
-		}
-		if (context instanceof Activity) {
-			final Crouton crouton = Crouton.makeText((Activity) context, message, CroutonStyle.ALERT);
-			final CroutonConfiguration.Builder cb = new CroutonConfiguration.Builder();
-			cb.setDuration(long_message ? CroutonConfiguration.DURATION_LONG : CroutonConfiguration.DURATION_SHORT);
-			crouton.setConfiguration(cb.build());
-			crouton.show();
-		} else {
-			final Toast toast = Toast.makeText(context, text, long_message ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT);
-			toast.show();
-		}
-	}
-
-	public static void showErrorMessage(final Context context, final CharSequence action, final CharSequence msg,
-			final boolean long_message) {
-		if (context == null) return;
-		final String message;
-		if (msg != null) {
-			message = context.getString(R.string.error_message, msg);
-		} else {
-			message = context.getString(R.string.error_unknown_error);
-		}
 		if (context instanceof Activity) {
 			final Crouton crouton = Crouton.makeText((Activity) context, message, CroutonStyle.ALERT);
 			final CroutonConfiguration.Builder cb = new CroutonConfiguration.Builder();
@@ -3521,35 +3588,22 @@ public final class Utils implements Constants {
 			final Toast toast = Toast.makeText(context, message, long_message ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT);
 			toast.show();
 		}
+	}
+
+	public static void showErrorMessage(final Context context, final CharSequence action, final CharSequence message,
+			final boolean long_message) {
+		if (context == null) return;
+		showErrorMessage(context, getErrorMessage(context, message), long_message);
 	}
 
 	public static void showErrorMessage(final Context context, final CharSequence action, final Throwable t,
 			final boolean long_message) {
 		if (context == null) return;
-		final String message;
 		if (t instanceof TwitterException) {
 			showTwitterErrorMessage(context, action, (TwitterException) t, long_message);
 			return;
-		} else if (t != null) {
-			final String t_message = trimLineBreak(t.getMessage());
-			if (action != null) {
-				message = context.getString(R.string.error_message_with_action, action, t_message);
-			} else {
-				message = context.getString(R.string.error_message, t_message);
-			}
-		} else {
-			message = context.getString(R.string.error_unknown_error);
 		}
-		if (context instanceof Activity) {
-			final Crouton crouton = Crouton.makeText((Activity) context, message, CroutonStyle.ALERT);
-			final CroutonConfiguration.Builder cb = new CroutonConfiguration.Builder();
-			cb.setDuration(long_message ? CroutonConfiguration.DURATION_LONG : CroutonConfiguration.DURATION_SHORT);
-			crouton.setConfiguration(cb.build());
-			crouton.show();
-		} else {
-			final Toast toast = Toast.makeText(context, message, long_message ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT);
-			toast.show();
-		}
+		showErrorMessage(context, getErrorMessage(context, action, t), long_message);
 	}
 
 	public static void showErrorMessage(final Context context, final int action, final String desc,
@@ -3613,7 +3667,8 @@ public final class Utils implements Constants {
 					final long sec_until_reset = status.getSecondsUntilReset() * 1000;
 					final String next_reset_time = ParseUtils.parseString(getRelativeTimeSpanString(System
 							.currentTimeMillis() + sec_until_reset));
-					message = context.getString(R.string.error_message_rate_limit, action, next_reset_time.trim());
+					message = context.getString(R.string.error_message_rate_limit_with_action, action,
+							next_reset_time.trim());
 				} else if (te.getErrorCode() > 0) {
 					final String msg = TwitterErrorCodes.getErrorMessage(context, te.getErrorCode());
 					message = context.getString(R.string.error_message_with_action, action, msg != null ? msg
@@ -3640,16 +3695,7 @@ public final class Utils implements Constants {
 		} else {
 			message = context.getString(R.string.error_unknown_error);
 		}
-		if (context instanceof Activity) {
-			final Crouton crouton = Crouton.makeText((Activity) context, message, CroutonStyle.ALERT);
-			final CroutonConfiguration.Builder cb = new CroutonConfiguration.Builder();
-			cb.setDuration(long_message ? CroutonConfiguration.DURATION_LONG : CroutonConfiguration.DURATION_SHORT);
-			crouton.setConfiguration(cb.build());
-			crouton.show();
-		} else {
-			final Toast toast = Toast.makeText(context, message, long_message ? Toast.LENGTH_LONG : Toast.LENGTH_SHORT);
-			toast.show();
-		}
+		showErrorMessage(context, message, long_message);
 	}
 
 	public static void showWarnMessage(final Context context, final CharSequence message, final boolean long_message) {

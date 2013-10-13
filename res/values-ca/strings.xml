@@ -26,7 +26,7 @@
   <string name="advanced">Avançades</string>
   <string name="save">Desa</string>
   <string name="edit">Edita</string>
-  <string name="login_to_twitter">Conectat a Twitter</string>
+
   <string name="edit_api">Edita l\'API</string>
   <string name="home">Inici</string>
   <string name="mentions">Mencions</string>
@@ -36,7 +36,7 @@
   <string name="error_unknown_error">Error: Error desconegut, probablement siga un bug.</string>
   <string name="error_message">Error: <xliff:g id="message">%s</xliff:g></string>
   <string name="error_message_with_action">Error en <xliff:g id="action">%1$s</xliff:g>: <xliff:g id="message">%2$s</xliff:g></string>
-  <string name="error_message_rate_limit">S\'a accedit el límit de peticions de Twitter en: <xliff:g id="action">%1$s</xliff:g>, please retry <xliff:g id="time">%2$s</xliff:g></string>
+  <string name="error_message_rate_limit_with_action">S\'a accedit el límit de peticions de Twitter en: <xliff:g id="action">%1$s</xliff:g>, please retry <xliff:g id="time">%2$s</xliff:g></string>
   <string name="select_account">Tria un compte</string>
   <string name="username">Nom d\'usuari</string>
   <string name="password">Contrasenya</string>
@@ -215,7 +215,7 @@
   <string name="view_user_list">Visualitzar llista usuari</string>
   <string name="uninstall">Desinstal·la</string>
   <string name="saved_searches">Cerques desades</string>
-  <string name="custom_tabs">Pestanyes personalitzades</string>
+
   <string name="default_tabs">Pestanyes per defecte</string>
   <string name="add_tab">Afegeix una pestanya</string>
   <string name="tab_type">Tipus de pestanya</string>
