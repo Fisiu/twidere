@@ -19,8 +19,6 @@
 
 package org.mariotaku.twidere;
 
-import android.content.ContentResolver;
-
 import org.mariotaku.twidere.provider.TweetStore;
 import org.mariotaku.twidere.provider.TweetStore.Accounts;
 import org.mariotaku.twidere.provider.TweetStore.CachedHashtags;
@@ -63,7 +61,7 @@ public interface Constants {
 
 	public static final String SCHEME_HTTP = "http";
 	public static final String SCHEME_HTTPS = "https";
-	public static final String SCHEME_CONTENT = ContentResolver.SCHEME_CONTENT;
+	public static final String SCHEME_CONTENT = "content";
 	public static final String SCHEME_TWIDERE = "twidere";
 
 	public static final String PROTOCOL_HTTP = SCHEME_HTTP + "://";
@@ -265,7 +263,6 @@ public interface Constants {
 	public static final String INTENT_ACTION_CUSTOM_TABS = INTENT_PACKAGE_PREFIX + "CUSTOM_TABS";
 	public static final String INTENT_ACTION_ADD_TAB = INTENT_PACKAGE_PREFIX + "ADD_TAB";
 	public static final String INTENT_ACTION_EDIT_TAB = INTENT_PACKAGE_PREFIX + "EDIT_TAB";
-	public static final String INTENT_ACTION_EDIT_HOST_MAPPING = INTENT_PACKAGE_PREFIX + "EDIT_HOST_MAPPING";
 	public static final String INTENT_ACTION_EDIT_USER_PROFILE = INTENT_PACKAGE_PREFIX + "EDIT_USER_PROFILE";
 	public static final String INTENT_ACTION_SERVICE_COMMAND = INTENT_PACKAGE_PREFIX + "SERVICE_COMMAND";
 	public static final String INTENT_ACTION_REQUEST_PERMISSIONS = INTENT_PACKAGE_PREFIX + "REQUEST_PERMISSIONS";

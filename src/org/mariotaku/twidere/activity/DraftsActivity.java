@@ -179,6 +179,7 @@ public class DraftsActivity extends TwidereSwipeBackActivity implements LoaderCa
 
 	@Override
 	public boolean onPrepareActionMode(final ActionMode mode, final Menu menu) {
+		updateTitle(mode);
 		return true;
 	}
 
@@ -242,7 +243,7 @@ public class DraftsActivity extends TwidereSwipeBackActivity implements LoaderCa
 	}
 
 	private void updateTitle(final ActionMode mode) {
-		if (mListView == null) return;
+		if (mListView == null || mode == null) return;
 		final int count = mListView.getCheckedItemCount();
 		mode.setTitle(getResources().getQuantityString(R.plurals.Nitems_selected, count, count));
 	}
@@ -263,7 +264,7 @@ public class DraftsActivity extends TwidereSwipeBackActivity implements LoaderCa
 
 		@Override
 		public void bindView(final View view, final Context context, final Cursor cursor) {
-			final long[] account_ids = ArrayUtils.fromString(cursor.getString(mAccountIdsIdx), ',');
+			final long[] account_ids = ArrayUtils.parseLongArray(cursor.getString(mAccountIdsIdx), ',');
 			final String content = cursor.getString(mTextIdx);
 			final String image_uri = cursor.getString(mImageUriIdx);
 			final TextView text = (TextView) view.findViewById(R.id.text);
