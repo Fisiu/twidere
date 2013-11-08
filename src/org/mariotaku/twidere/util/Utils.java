@@ -91,7 +91,6 @@ import android.widget.Toast;
 
 import com.huewu.pla.lib.MultiColumnListView;
 import com.huewu.pla.lib.internal.PLAListView;
-import com.origamilabs.library.views.StaggeredGridView;
 
 import de.keyboardsurfer.android.widget.crouton.Crouton;
 import de.keyboardsurfer.android.widget.crouton.CroutonConfiguration;
@@ -105,6 +104,7 @@ import org.mariotaku.querybuilder.AllColumns;
 import org.mariotaku.querybuilder.Columns;
 import org.mariotaku.querybuilder.Columns.Column;
 import org.mariotaku.querybuilder.OrderBy;
+import org.mariotaku.querybuilder.RawItemArray;
 import org.mariotaku.querybuilder.SQLQueryBuilder;
 import org.mariotaku.querybuilder.Selectable;
 import org.mariotaku.querybuilder.Tables;
@@ -364,17 +364,11 @@ public final class Utils implements Constants {
 	public static String buildActivatedStatsWhereClause(final Context context, final String selection) {
 		if (context == null) return null;
 		final long[] account_ids = getActivatedAccountIds(context);
-		final StringBuilder builder = new StringBuilder();
+		final Where account_where = Where.in(new Column(Statuses.ACCOUNT_ID), new RawItemArray(account_ids));
 		if (selection != null) {
-			builder.append(selection);
-			builder.append(" AND ");
+			account_where.and(new Where(selection));
 		}
-
-		builder.append(Statuses.ACCOUNT_ID + " IN ( ");
-		builder.append(ArrayUtils.toString(account_ids, ',', true));
-		builder.append(" )");
-
-		return builder.toString();
+		return account_where.getSQL();
 	}
 
 	public static Uri buildDirectMessageConversationUri(final long account_id, final long conversation_id,
@@ -516,12 +510,13 @@ public final class Utils implements Constants {
 		final ListAdapter adapter = view.getAdapter();
 		if (adapter == null) return;
 		view.clearChoices();
-		// view.setChoiceMode(ListView.CHOICE_MODE_NONE);
+		view.setChoiceMode(MultiColumnListView.CHOICE_MODE_NONE);
+		view.invalidateViews();
 		// Workaround for Android bug
 		// http://stackoverflow.com/questions/9754170/listview-selection-remains-persistent-after-exiting-choice-mode
-		final int position = view.getFirstVisiblePosition();
-		view.setAdapter(adapter);
-		Utils.scrollListToPosition(view, position);
+		// final int position = view.getFirstVisiblePosition();
+		// view.setAdapter(adapter);
+		// Utils.scrollListToPosition(view, position);
 	}
 
 	public static void clearUserColor(final Context context, final long user_id) {
@@ -1711,8 +1706,12 @@ public final class Utils implements Constants {
 	}
 
 	public static long[] getOldestMessageIdsFromDatabase(final Context context, final Uri uri) {
-		if (context == null || uri == null) return null;
 		final long[] account_ids = getActivatedAccountIds(context);
+		return getOldestMessageIdsFromDatabase(context, uri, account_ids);
+	}
+
+	public static long[] getOldestMessageIdsFromDatabase(final Context context, final Uri uri, final long[] account_ids) {
+		if (context == null || uri == null) return null;
 		final String[] cols = new String[] { DirectMessages.MESSAGE_ID };
 		final ContentResolver resolver = context.getContentResolver();
 		final long[] status_ids = new long[account_ids.length];
@@ -1735,8 +1734,12 @@ public final class Utils implements Constants {
 	}
 
 	public static long[] getOldestStatusIdsFromDatabase(final Context context, final Uri uri) {
-		if (context == null || uri == null) return null;
 		final long[] account_ids = getActivatedAccountIds(context);
+		return getOldestStatusIdsFromDatabase(context, uri, account_ids);
+	}
+
+	public static long[] getOldestStatusIdsFromDatabase(final Context context, final Uri uri, final long[] account_ids) {
+		if (context == null || uri == null || account_ids == null) return null;
 		final String[] cols = new String[] { Statuses.STATUS_ID };
 		final ContentResolver resolver = context.getContentResolver();
 		final long[] status_ids = new long[account_ids.length];
@@ -3495,21 +3498,6 @@ public final class Utils implements Constants {
 		scrollListToPosition(list, 0);
 	}
 
-	public static void scrollListToTop(final StaggeredGridView grid) {
-		if (grid == null) return;
-		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
-			grid.setSelectionToTop();
-			grid.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(),
-					MotionEvent.ACTION_CANCEL, 0, 0, 0));
-		} else {
-			grid.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(),
-					MotionEvent.ACTION_DOWN, 0, 0, 0));
-			grid.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(),
-					MotionEvent.ACTION_UP, 0, 0, 0));
-			grid.setSelectionToTop();
-		}
-	}
-
 	public static void setMenuForStatus(final Context context, final Menu menu, final ParcelableStatus status) {
 		if (context == null || menu == null || status == null) return;
 		final int activated_color = ThemeUtils.getThemeColor(context);
@@ -3545,7 +3533,9 @@ public final class Utils implements Constants {
 		extension_extras.putParcelable(EXTRA_STATUS, status);
 		extension_intent.putExtras(extension_extras);
 		final MenuItem more_submenu = menu.findItem(R.id.more_submenu);
-		addIntentToMenu(context, more_submenu != null ? more_submenu.getSubMenu() : menu, extension_intent);
+		final Menu menu_to_add = more_submenu != null ? more_submenu.getSubMenu() : menu;
+		menu_to_add.removeGroup(MENU_GROUP_STATUS_EXTENSION);
+		addIntentToMenu(context, menu_to_add, extension_intent, MENU_GROUP_STATUS_EXTENSION);
 	}
 
 	public static void setMenuItemAvailability(final Menu menu, final int id, final boolean available) {

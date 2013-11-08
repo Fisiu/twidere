@@ -44,6 +44,7 @@ import com.huewu.pla.lib.MultiColumnListView;
 import org.mariotaku.twidere.fragment.iface.IBasePullToRefreshFragment;
 import org.mariotaku.twidere.fragment.iface.PullToRefreshAttacherActivity;
 import org.mariotaku.twidere.util.ThemeUtils;
+import org.mariotaku.twidere.util.pulltorefresh.viewdelegates.PLAAbsListViewDelegate;
 
 import uk.co.senab.actionbarpulltorefresh.library.DefaultHeaderTransformer;
 import uk.co.senab.actionbarpulltorefresh.library.PullToRefreshAttacher;
@@ -138,11 +139,12 @@ public abstract class BasePullToRefreshMultiColumnListFragment extends BaseSuppo
 		final PullToRefreshLayout plv = new PullToRefreshLayout(context);
 		mPullToRefreshLayout = plv;
 
-		final MultiColumnListView lv = new MultiColumnListView(context);
+		final MultiColumnListView lv = createMultiColumnListView(context, inflater);
 		lv.setId(android.R.id.list);
 		lv.setDrawSelectorOnTop(false);
 		plv.addView(lv, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
 		plv.setPullToRefreshAttacher(mPullToRefreshAttacher, this);
+		mPullToRefreshAttacher.addRefreshableView(lv, new PLAAbsListViewDelegate(), this);
 		// ViewCompat.setOverScrollMode(lv, ViewCompat.OVER_SCROLL_NEVER);
 		lframe.addView(plv, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
 				ViewGroup.LayoutParams.MATCH_PARENT));
