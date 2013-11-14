@@ -8,5 +8,8 @@
 	<integer name="default_text_size">15</integer>
 	<integer name="unread_count_text_size">10</integer>
 	<integer name="default_multi_column_list_count">1</integer>
+	<integer name="max_action_buttons">2</integer>
+	<integer name="max_action_buttons_bottom">4</integer>
+	<integer name="activity_anim_time">250</integer>
 
 </resources>

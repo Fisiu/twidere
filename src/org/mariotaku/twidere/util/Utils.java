@@ -76,12 +76,12 @@ import android.support.v4.view.accessibility.AccessibilityEventCompat;
 import android.text.format.DateFormat;
 import android.text.format.DateUtils;
 import android.text.format.Time;
-import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.View.MeasureSpec;
+import android.view.Window;
 import android.view.accessibility.AccessibilityEvent;
 import android.view.accessibility.AccessibilityManager;
 import android.widget.ListAdapter;
@@ -113,39 +113,39 @@ import org.mariotaku.twidere.BuildConfig;
 import org.mariotaku.twidere.Constants;
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.activity.CameraCropActivity;
-import org.mariotaku.twidere.activity.DualPaneActivity;
+import org.mariotaku.twidere.activity.support.DualPaneActivity;
 import org.mariotaku.twidere.adapter.iface.IBaseAdapter;
 import org.mariotaku.twidere.adapter.iface.IBaseCardAdapter;
 import org.mariotaku.twidere.app.TwidereApplication;
-import org.mariotaku.twidere.fragment.DirectMessagesConversationFragment;
-import org.mariotaku.twidere.fragment.IncomingFriendshipsFragment;
-import org.mariotaku.twidere.fragment.SavedSearchesListFragment;
-import org.mariotaku.twidere.fragment.SearchFragment;
-import org.mariotaku.twidere.fragment.SearchStatusesFragment;
-import org.mariotaku.twidere.fragment.SensitiveContentWarningDialogFragment;
-import org.mariotaku.twidere.fragment.StatusFragment;
-import org.mariotaku.twidere.fragment.StatusRetweetersListFragment;
-import org.mariotaku.twidere.fragment.StatusesListFragment;
-import org.mariotaku.twidere.fragment.UserBlocksListFragment;
-import org.mariotaku.twidere.fragment.UserFavoritesFragment;
-import org.mariotaku.twidere.fragment.UserFollowersFragment;
-import org.mariotaku.twidere.fragment.UserFriendsFragment;
-import org.mariotaku.twidere.fragment.UserListDetailsFragment;
-import org.mariotaku.twidere.fragment.UserListMembersFragment;
-import org.mariotaku.twidere.fragment.UserListMembershipsListFragment;
-import org.mariotaku.twidere.fragment.UserListSubscribersFragment;
-import org.mariotaku.twidere.fragment.UserListTimelineFragment;
-import org.mariotaku.twidere.fragment.UserListsListFragment;
-import org.mariotaku.twidere.fragment.UserMentionsFragment;
-import org.mariotaku.twidere.fragment.UserProfileFragment;
-import org.mariotaku.twidere.fragment.UserTimelineFragment;
-import org.mariotaku.twidere.fragment.UsersListFragment;
+import org.mariotaku.twidere.fragment.support.DirectMessagesConversationFragment;
+import org.mariotaku.twidere.fragment.support.IncomingFriendshipsFragment;
+import org.mariotaku.twidere.fragment.support.SavedSearchesListFragment;
+import org.mariotaku.twidere.fragment.support.SearchFragment;
+import org.mariotaku.twidere.fragment.support.SearchStatusesFragment;
+import org.mariotaku.twidere.fragment.support.SensitiveContentWarningDialogFragment;
+import org.mariotaku.twidere.fragment.support.StatusFragment;
+import org.mariotaku.twidere.fragment.support.StatusRetweetersListFragment;
+import org.mariotaku.twidere.fragment.support.StatusesListFragment;
+import org.mariotaku.twidere.fragment.support.UserBlocksListFragment;
+import org.mariotaku.twidere.fragment.support.UserFavoritesFragment;
+import org.mariotaku.twidere.fragment.support.UserFollowersFragment;
+import org.mariotaku.twidere.fragment.support.UserFriendsFragment;
+import org.mariotaku.twidere.fragment.support.UserListDetailsFragment;
+import org.mariotaku.twidere.fragment.support.UserListMembersFragment;
+import org.mariotaku.twidere.fragment.support.UserListMembershipsListFragment;
+import org.mariotaku.twidere.fragment.support.UserListSubscribersFragment;
+import org.mariotaku.twidere.fragment.support.UserListTimelineFragment;
+import org.mariotaku.twidere.fragment.support.UserListsListFragment;
+import org.mariotaku.twidere.fragment.support.UserMentionsFragment;
+import org.mariotaku.twidere.fragment.support.UserProfileFragment;
+import org.mariotaku.twidere.fragment.support.UserTimelineFragment;
+import org.mariotaku.twidere.fragment.support.UsersListFragment;
 import org.mariotaku.twidere.model.DirectMessageCursorIndices;
 import org.mariotaku.twidere.model.ParcelableDirectMessage;
 import org.mariotaku.twidere.model.ParcelableStatus;
-import org.mariotaku.twidere.model.ParcelableStatus.ParcelableUserMention;
 import org.mariotaku.twidere.model.ParcelableUser;
 import org.mariotaku.twidere.model.ParcelableUserList;
+import org.mariotaku.twidere.model.ParcelableUserMention;
 import org.mariotaku.twidere.model.StatusCursorIndices;
 import org.mariotaku.twidere.provider.TweetStore;
 import org.mariotaku.twidere.provider.TweetStore.Accounts;
@@ -155,7 +155,7 @@ import org.mariotaku.twidere.provider.TweetStore.CachedUsers;
 import org.mariotaku.twidere.provider.TweetStore.DirectMessages;
 import org.mariotaku.twidere.provider.TweetStore.Filters;
 import org.mariotaku.twidere.provider.TweetStore.Statuses;
-import org.mariotaku.twidere.util.httpclient.HttpClientImpl;
+import org.mariotaku.twidere.util.net.HttpClientImpl;
 
 import twitter4j.DirectMessage;
 import twitter4j.EntitySupport;
@@ -180,6 +180,7 @@ import twitter4j.http.HostAddressResolver;
 import twitter4j.http.HttpClientWrapper;
 import twitter4j.http.HttpResponse;
 
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -899,7 +900,7 @@ public final class Utils implements Constants {
 		final String where = DirectMessages.ACCOUNT_ID + " = " + account_id + " AND " + DirectMessages.MESSAGE_ID
 				+ " = " + message_id;
 		for (final Uri uri : DIRECT_MESSAGES_URIS) {
-			final Cursor cur = resolver.query(uri, DirectMessages.COLUMNS, where, null, null);
+			final Cursor cur = ContentResolverUtils.query(resolver, uri, DirectMessages.COLUMNS, where, null, null);
 			if (cur == null) {
 				continue;
 			}
@@ -938,7 +939,7 @@ public final class Utils implements Constants {
 		final String where = Statuses.ACCOUNT_ID + " = " + account_id + " AND " + Statuses.STATUS_ID + " = "
 				+ status_id;
 		for (final Uri uri : STATUSES_URIS) {
-			final Cursor cur = resolver.query(uri, Statuses.COLUMNS, where, null, null);
+			final Cursor cur = ContentResolverUtils.query(resolver, uri, Statuses.COLUMNS, where, null, null);
 			if (cur == null) {
 				continue;
 			}
@@ -1064,7 +1065,7 @@ public final class Utils implements Constants {
 		if (context == null) return Color.TRANSPARENT;
 		Integer color = sAccountColors.get(account_id);
 		if (color == null) {
-			final Cursor cur = context.getContentResolver().query(Accounts.CONTENT_URI,
+			final Cursor cur = ContentResolverUtils.query(context.getContentResolver(), Accounts.CONTENT_URI,
 					new String[] { Accounts.USER_COLOR }, Accounts.ACCOUNT_ID + " = " + account_id, null, null);
 			if (cur == null) return Color.TRANSPARENT;
 			if (cur.getCount() <= 0) {
@@ -1108,7 +1109,7 @@ public final class Utils implements Constants {
 	public static long[] getAccountIds(final Context context) {
 		long[] accounts = new long[0];
 		if (context == null) return accounts;
-		final Cursor cur = context.getContentResolver().query(Accounts.CONTENT_URI,
+		final Cursor cur = ContentResolverUtils.query(context.getContentResolver(), Accounts.CONTENT_URI,
 				new String[] { Accounts.ACCOUNT_ID }, null, null, null);
 		if (cur != null) {
 			final int idx = cur.getColumnIndexOrThrow(Accounts.ACCOUNT_ID);
@@ -1129,8 +1130,8 @@ public final class Utils implements Constants {
 		if (context == null) return null;
 		String name = sAccountNames.get(account_id);
 		if (name == null) {
-			final Cursor cur = context.getContentResolver().query(Accounts.CONTENT_URI, new String[] { Accounts.NAME },
-					Accounts.ACCOUNT_ID + " = " + account_id, null, null);
+			final Cursor cur = ContentResolverUtils.query(context.getContentResolver(), Accounts.CONTENT_URI,
+					new String[] { Accounts.NAME }, Accounts.ACCOUNT_ID + " = " + account_id, null, null);
 			if (cur == null) return name;
 
 			if (cur.getCount() > 0) {
@@ -1152,7 +1153,8 @@ public final class Utils implements Constants {
 		final String[] cols = new String[] { Accounts.NAME };
 		final String where = account_ids != null ? Accounts.ACCOUNT_ID + " IN("
 				+ ArrayUtils.toString(account_ids, ',', false) + ")" : null;
-		final Cursor cur = context.getContentResolver().query(Accounts.CONTENT_URI, cols, where, null, null);
+		final Cursor cur = ContentResolverUtils.query(context.getContentResolver(), Accounts.CONTENT_URI, cols, where,
+				null, null);
 		if (cur == null) return new String[0];
 		final int idx = cur.getColumnIndexOrThrow(Accounts.NAME);
 		cur.moveToFirst();
@@ -1171,7 +1173,7 @@ public final class Utils implements Constants {
 		if (context == null) return null;
 		String screen_name = sAccountScreenNames.get(account_id);
 		if (screen_name == null) {
-			final Cursor cur = context.getContentResolver().query(Accounts.CONTENT_URI,
+			final Cursor cur = ContentResolverUtils.query(context.getContentResolver(), Accounts.CONTENT_URI,
 					new String[] { Accounts.SCREEN_NAME }, Accounts.ACCOUNT_ID + " = " + account_id, null, null);
 			if (cur == null) return screen_name;
 
@@ -1203,7 +1205,8 @@ public final class Utils implements Constants {
 		final String[] cols = new String[] { Accounts.SCREEN_NAME };
 		final String where = account_ids != null ? Accounts.ACCOUNT_ID + " IN("
 				+ ArrayUtils.toString(account_ids, ',', false) + ")" : null;
-		final Cursor cur = context.getContentResolver().query(Accounts.CONTENT_URI, cols, where, null, null);
+		final Cursor cur = ContentResolverUtils.query(context.getContentResolver(), Accounts.CONTENT_URI, cols, where,
+				null, null);
 		if (cur == null) return new String[0];
 		final int idx = cur.getColumnIndexOrThrow(Accounts.SCREEN_NAME);
 		cur.moveToFirst();
@@ -1222,8 +1225,8 @@ public final class Utils implements Constants {
 		long[] accounts = new long[0];
 		if (context == null) return accounts;
 		final String[] cols = new String[] { Accounts.ACCOUNT_ID };
-		final Cursor cur = context.getContentResolver().query(Accounts.CONTENT_URI, cols, Accounts.IS_ACTIVATED + "=1",
-				null, Accounts.ACCOUNT_ID);
+		final Cursor cur = ContentResolverUtils.query(context.getContentResolver(), Accounts.CONTENT_URI, cols,
+				Accounts.IS_ACTIVATED + "=1", null, Accounts.ACCOUNT_ID);
 		if (cur != null) {
 			final int idx = cur.getColumnIndexOrThrow(Accounts.ACCOUNT_ID);
 			cur.moveToFirst();
@@ -1243,8 +1246,8 @@ public final class Utils implements Constants {
 		String[] accounts = new String[0];
 		if (context == null) return accounts;
 		final String[] cols = new String[] { Accounts.SCREEN_NAME };
-		final Cursor cur = context.getContentResolver().query(Accounts.CONTENT_URI, cols, Accounts.IS_ACTIVATED + "=1",
-				null, null);
+		final Cursor cur = ContentResolverUtils.query(context.getContentResolver(), Accounts.CONTENT_URI, cols,
+				Accounts.IS_ACTIVATED + "=1", null, null);
 		if (cur != null) {
 			final int idx = cur.getColumnIndexOrThrow(Accounts.SCREEN_NAME);
 			cur.moveToFirst();
@@ -1260,10 +1263,34 @@ public final class Utils implements Constants {
 		return accounts;
 	}
 
+	public static Bitmap getActivityScreenshot(final Activity activity, final int cacheQuality) {
+		if (activity == null) return null;
+		final Window w = activity.getWindow();
+		final View view = w.getDecorView();
+		final boolean prevState = view.isDrawingCacheEnabled();
+		final int prevQuality = view.getDrawingCacheQuality();
+		view.setDrawingCacheEnabled(true);
+		view.setDrawingCacheQuality(cacheQuality);
+		view.buildDrawingCache();
+		final Bitmap b = Bitmap.createBitmap(view.getDrawingCache());
+		final Rect frame = new Rect();
+		view.getWindowVisibleDisplayFrame(frame);
+		// Why draw a black rectangle here?
+		// If the activity uses light theme, the screenshot will have a white
+		// bar on the top, this workaround can solve that issue.
+		final Canvas c = new Canvas(b);
+		final Paint paint = new Paint();
+		paint.setColor(Color.BLACK);
+		c.drawRect(frame.left, 0, frame.right, frame.top, paint);
+		view.setDrawingCacheEnabled(prevState);
+		view.setDrawingCacheQuality(prevQuality);
+		return b;
+	}
+
 	public static int getAllStatusesCount(final Context context, final Uri uri) {
 		if (context == null) return 0;
 		final ContentResolver resolver = context.getContentResolver();
-		final Cursor cur = resolver.query(uri, new String[] { Statuses.STATUS_ID },
+		final Cursor cur = ContentResolverUtils.query(resolver, uri, new String[] { Statuses.STATUS_ID },
 				buildStatusFilterWhereClause(getTableNameByUri(uri), null, shouldEnableFiltersForRTs(context)), null,
 				null);
 		if (cur == null) return 0;
@@ -1277,7 +1304,7 @@ public final class Utils implements Constants {
 	public static long[] getAllStatusesIds(final Context context, final Uri uri) {
 		if (context == null) return new long[0];
 		final ContentResolver resolver = context.getContentResolver();
-		final Cursor cur = resolver.query(uri, new String[] { Statuses.STATUS_ID },
+		final Cursor cur = ContentResolverUtils.query(resolver, uri, new String[] { Statuses.STATUS_ID },
 				buildStatusFilterWhereClause(getTableNameByUri(uri), null, shouldEnableFiltersForRTs(context)), null,
 				null);
 		if (cur == null) return new long[0];
@@ -1466,6 +1493,16 @@ public final class Utils implements Constants {
 				nick);
 	}
 
+	public static byte[] getEncodedActivityScreenshot(final Activity activity, final int cacheQuality,
+			final Bitmap.CompressFormat encodeFormat, final int encodeQuality) {
+		final Bitmap b = getActivityScreenshot(activity, cacheQuality);
+		if (b == null) return null;
+		final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+		b.compress(encodeFormat, encodeQuality, baos);
+		b.recycle();
+		return baos.toByteArray();
+	}
+
 	public static String getErrorMessage(final Context context, final CharSequence message) {
 		if (context == null) return ParseUtils.parseString(message);
 		if (isEmpty(message)) return context.getString(R.string.error_unknown_error);
@@ -1554,7 +1591,7 @@ public final class Utils implements Constants {
 		if (ParseUtils.parseString(uri).startsWith(media_uri_start)) {
 
 			final String[] proj = { MediaStore.Images.Media.DATA };
-			final Cursor cur = context.getContentResolver().query(uri, proj, null, null, null);
+			final Cursor cur = ContentResolverUtils.query(context.getContentResolver(), uri, proj, null, null, null);
 
 			if (cur == null) return null;
 
@@ -1649,7 +1686,8 @@ public final class Utils implements Constants {
 		int idx = 0;
 		for (final long account_id : account_ids) {
 			final String where = Statuses.ACCOUNT_ID + " = " + account_id;
-			final Cursor cur = resolver.query(uri, cols, where, null, DirectMessages.DEFAULT_SORT_ORDER);
+			final Cursor cur = ContentResolverUtils.query(resolver, uri, cols, where, null,
+					DirectMessages.DEFAULT_SORT_ORDER);
 			if (cur == null) {
 				continue;
 			}
@@ -1677,7 +1715,8 @@ public final class Utils implements Constants {
 		int idx = 0;
 		for (final long account_id : account_ids) {
 			final String where = Statuses.ACCOUNT_ID + " = " + account_id;
-			final Cursor cur = resolver.query(uri, cols, where, null, Statuses.DEFAULT_SORT_ORDER);
+			final Cursor cur = ContentResolverUtils
+					.query(resolver, uri, cols, where, null, Statuses.DEFAULT_SORT_ORDER);
 			if (cur == null) {
 				continue;
 			}
@@ -1718,7 +1757,7 @@ public final class Utils implements Constants {
 		int idx = 0;
 		for (final long account_id : account_ids) {
 			final String where = Statuses.ACCOUNT_ID + " = " + account_id;
-			final Cursor cur = resolver.query(uri, cols, where, null, DirectMessages.MESSAGE_ID);
+			final Cursor cur = ContentResolverUtils.query(resolver, uri, cols, where, null, DirectMessages.MESSAGE_ID);
 			if (cur == null) {
 				continue;
 			}
@@ -1746,7 +1785,7 @@ public final class Utils implements Constants {
 		int idx = 0;
 		for (final long account_id : account_ids) {
 			final String where = Statuses.ACCOUNT_ID + " = " + account_id;
-			final Cursor cur = resolver.query(uri, cols, where, null, Statuses.STATUS_ID);
+			final Cursor cur = ContentResolverUtils.query(resolver, uri, cols, where, null, Statuses.STATUS_ID);
 			if (cur == null) {
 				continue;
 			}
@@ -1874,7 +1913,7 @@ public final class Utils implements Constants {
 		final ContentResolver resolver = context.getContentResolver();
 		final String where = Statuses.ACCOUNT_ID + " = " + account_id;
 		final String[] projection = new String[] { Statuses.STATUS_ID };
-		final Cursor cur = resolver.query(uri, projection, where, null, null);
+		final Cursor cur = ContentResolverUtils.query(resolver, uri, projection, where, null, null);
 		if (cur != null) {
 			final int idx = cur.getColumnIndexOrThrow(Statuses.STATUS_ID);
 			cur.moveToFirst();
@@ -2019,9 +2058,6 @@ public final class Utils implements Constants {
 
 	public static Twitter getTwitterInstance(final Context context, final long account_id,
 			final boolean include_entities, final boolean include_retweets, final boolean use_apache_httpclient) {
-		if (Thread.currentThread().getId() == 1) {
-			Log.w(LOGTAG, "getTwitterInstance called from UI thread", new IllegalStateException());
-		}
 		if (context == null) return null;
 		final TwidereApplication app = TwidereApplication.getInstance(context);
 		final SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE);
@@ -2035,8 +2071,8 @@ public final class Utils implements Constants {
 		final String pref_consumer_secret = prefs.getString(PREFERENCE_KEY_CONSUMER_SECRET, TWITTER_CONSUMER_SECRET);
 		final StringBuilder where = new StringBuilder();
 		where.append(Accounts.ACCOUNT_ID + " = " + account_id);
-		final Cursor c = context.getContentResolver().query(Accounts.CONTENT_URI, Accounts.COLUMNS, where.toString(),
-				null, null);
+		final Cursor c = ContentResolverUtils.query(context.getContentResolver(), Accounts.CONTENT_URI,
+				Accounts.COLUMNS, where.toString(), null, null);
 		if (c == null) return null;
 		try {
 			if (c.getCount() > 0) {
@@ -2193,8 +2229,8 @@ public final class Utils implements Constants {
 
 	public static void initAccountColor(final Context context) {
 		if (context == null) return;
-		final Cursor cur = context.getContentResolver().query(Accounts.CONTENT_URI,
-				new String[] { Accounts.ACCOUNT_ID, Accounts.USER_COLOR }, null, null, null);
+		final Cursor cur = ContentResolverUtils.query(context.getContentResolver(), Accounts.CONTENT_URI, new String[] {
+				Accounts.ACCOUNT_ID, Accounts.USER_COLOR }, null, null, null);
 		if (cur == null) return;
 		final int id_idx = cur.getColumnIndex(Accounts.ACCOUNT_ID), color_idx = cur.getColumnIndex(Accounts.USER_COLOR);
 		cur.moveToFirst();
@@ -2310,7 +2346,7 @@ public final class Utils implements Constants {
 		if (context == null) return false;
 		final ContentResolver resolver = context.getContentResolver();
 		final String where = Accounts.ACCOUNT_ID + " = " + account_id;
-		final Cursor cur = resolver.query(Accounts.CONTENT_URI, new String[0], where, null, null);
+		final Cursor cur = ContentResolverUtils.query(resolver, Accounts.CONTENT_URI, new String[0], where, null, null);
 		try {
 			return cur != null && cur.getCount() > 0;
 		} finally {
@@ -2324,8 +2360,8 @@ public final class Utils implements Constants {
 		if (context == null) return false;
 		final ContentResolver resolver = context.getContentResolver();
 		final String where = Accounts.SCREEN_NAME + " = ?";
-		final Cursor cur = resolver.query(Accounts.CONTENT_URI, new String[0], where, new String[] { screen_name },
-				null);
+		final Cursor cur = ContentResolverUtils.query(resolver, Accounts.CONTENT_URI, new String[0], where,
+				new String[] { screen_name }, null);
 		try {
 			return cur != null && cur.getCount() > 0;
 		} finally {
@@ -2729,7 +2765,9 @@ public final class Utils implements Constants {
 					builder.appendQueryParameter(QUERY_PARAM_CONVERSATION_ID, String.valueOf(conversation_id));
 				}
 			}
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 	}
 
@@ -2772,7 +2810,9 @@ public final class Utils implements Constants {
 			builder.scheme(SCHEME_TWIDERE);
 			builder.authority(AUTHORITY_INCOMING_FRIENDSHIPS);
 			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 	}
 
@@ -2790,7 +2830,9 @@ public final class Utils implements Constants {
 			builder.scheme(SCHEME_TWIDERE);
 			builder.authority(AUTHORITY_SAVED_SEARCHES);
 			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 	}
 
@@ -2810,7 +2852,9 @@ public final class Utils implements Constants {
 			builder.authority(AUTHORITY_SEARCH);
 			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
 			builder.appendQueryParameter(QUERY_PARAM_QUERY, query);
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 	}
 
@@ -2831,6 +2875,7 @@ public final class Utils implements Constants {
 			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
 			builder.appendQueryParameter(QUERY_PARAM_STATUS_ID, String.valueOf(status_id));
 			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
 			activity.startActivity(intent);
 		}
 	}
@@ -2838,8 +2883,8 @@ public final class Utils implements Constants {
 	public static void openStatus(final Activity activity, final ParcelableStatus status) {
 		if (activity == null || status == null) return;
 		final long account_id = status.account_id, status_id = status.id;
-		final Bundle bundle = new Bundle();
-		bundle.putParcelable(EXTRA_STATUS, status);
+		final Bundle extras = new Bundle();
+		extras.putParcelable(EXTRA_STATUS, status);
 		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
 			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
 			final Fragment details_fragment = dual_pane_activity.getDetailsFragment();
@@ -2848,7 +2893,7 @@ public final class Utils implements Constants {
 				dual_pane_activity.showRightPane();
 			} else {
 				final Fragment fragment = new StatusFragment();
-				final Bundle args = new Bundle(bundle);
+				final Bundle args = new Bundle(extras);
 				args.putLong(EXTRA_ACCOUNT_ID, account_id);
 				args.putLong(EXTRA_STATUS_ID, status_id);
 				fragment.setArguments(args);
@@ -2861,27 +2906,28 @@ public final class Utils implements Constants {
 			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
 			builder.appendQueryParameter(QUERY_PARAM_STATUS_ID, String.valueOf(status_id));
 			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-
-			intent.putExtras(bundle);
+			setActivityScreenshot(activity, intent);
+			intent.putExtras(extras);
 			activity.startActivity(intent);
 		}
 	}
 
 	public static void openStatuses(final Activity activity, final List<ParcelableStatus> statuses) {
 		if (activity == null || statuses == null) return;
-		final Bundle bundle = new Bundle();
-		bundle.putParcelableArrayList(EXTRA_STATUSES, new ArrayList<ParcelableStatus>(statuses));
+		final Bundle extras = new Bundle();
+		extras.putParcelableArrayList(EXTRA_STATUSES, new ArrayList<ParcelableStatus>(statuses));
 		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
 			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
 			final Fragment fragment = new StatusesListFragment();
-			fragment.setArguments(bundle);
+			fragment.setArguments(extras);
 			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
 		} else {
 			final Uri.Builder builder = new Uri.Builder();
 			builder.scheme(SCHEME_TWIDERE);
 			builder.authority(AUTHORITY_STATUSES);
 			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			intent.putExtras(bundle);
+			intent.putExtras(extras);
+			setActivityScreenshot(activity, intent);
 			activity.startActivity(intent);
 		}
 	}
@@ -2902,7 +2948,9 @@ public final class Utils implements Constants {
 			builder.authority(AUTHORITY_STATUS_RETWEETERS);
 			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
 			builder.appendQueryParameter(QUERY_PARAM_STATUS_ID, String.valueOf(status_id));
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 	}
 
@@ -2927,7 +2975,9 @@ public final class Utils implements Constants {
 			if (query != null) {
 				builder.appendQueryParameter(QUERY_PARAM_QUERY, query);
 			}
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 	}
 
@@ -2945,7 +2995,9 @@ public final class Utils implements Constants {
 			builder.scheme(SCHEME_TWIDERE);
 			builder.authority(AUTHORITY_USER_BLOCKS);
 			builder.appendQueryParameter(QUERY_PARAM_ACCOUNT_ID, String.valueOf(account_id));
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 	}
 
@@ -2976,7 +3028,9 @@ public final class Utils implements Constants {
 			if (screen_name != null) {
 				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
 			}
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 
 	}
@@ -3008,7 +3062,9 @@ public final class Utils implements Constants {
 			if (screen_name != null) {
 				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
 			}
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 	}
 
@@ -3039,7 +3095,9 @@ public final class Utils implements Constants {
 			if (screen_name != null) {
 				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
 			}
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 
 	}
@@ -3075,7 +3133,9 @@ public final class Utils implements Constants {
 			if (list_name != null) {
 				builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, list_name);
 			}
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 	}
 
@@ -3110,7 +3170,9 @@ public final class Utils implements Constants {
 			if (list_name != null) {
 				builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, list_name);
 			}
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 	}
 
@@ -3147,6 +3209,7 @@ public final class Utils implements Constants {
 				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
 			}
 			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
 			activity.startActivity(intent);
 		}
 	}
@@ -3174,7 +3237,9 @@ public final class Utils implements Constants {
 			if (screen_name != null) {
 				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
 			}
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 	}
 
@@ -3209,7 +3274,9 @@ public final class Utils implements Constants {
 			if (list_name != null) {
 				builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, list_name);
 			}
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 	}
 
@@ -3249,7 +3316,9 @@ public final class Utils implements Constants {
 			if (list_name != null) {
 				builder.appendQueryParameter(QUERY_PARAM_LIST_NAME, list_name);
 			}
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 	}
 
@@ -3278,7 +3347,9 @@ public final class Utils implements Constants {
 			if (screen_name != null) {
 				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
 			}
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 	}
 
@@ -3310,14 +3381,15 @@ public final class Utils implements Constants {
 				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
 			}
 			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
 			activity.startActivity(intent);
 		}
 	}
 
 	public static void openUserProfile(final Activity activity, final ParcelableUser user) {
 		if (activity == null || user == null) return;
-		final Bundle bundle = new Bundle();
-		bundle.putParcelable(EXTRA_USER, user);
+		final Bundle extras = new Bundle();
+		extras.putParcelable(EXTRA_USER, user);
 		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
 			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
 			final Fragment details_fragment = dual_pane_activity.getDetailsFragment();
@@ -3326,7 +3398,7 @@ public final class Utils implements Constants {
 				dual_pane_activity.showRightPane();
 			} else {
 				final Fragment fragment = new UserProfileFragment();
-				final Bundle args = new Bundle(bundle);
+				final Bundle args = new Bundle(extras);
 				args.putLong(EXTRA_ACCOUNT_ID, user.account_id);
 				if (user.id > 0) {
 					args.putLong(EXTRA_USER_ID, user.id);
@@ -3349,26 +3421,28 @@ public final class Utils implements Constants {
 				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, user.screen_name);
 			}
 			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			intent.putExtras(bundle);
+			intent.putExtras(extras);
+			setActivityScreenshot(activity, intent);
 			activity.startActivity(intent);
 		}
 	}
 
 	public static void openUsers(final Activity activity, final List<ParcelableUser> users) {
 		if (activity == null || users == null) return;
-		final Bundle bundle = new Bundle();
-		bundle.putParcelableArrayList(EXTRA_USERS, new ArrayList<ParcelableUser>(users));
+		final Bundle extras = new Bundle();
+		extras.putParcelableArrayList(EXTRA_USERS, new ArrayList<ParcelableUser>(users));
 		if (activity instanceof DualPaneActivity && ((DualPaneActivity) activity).isDualPaneMode()) {
 			final DualPaneActivity dual_pane_activity = (DualPaneActivity) activity;
 			final Fragment fragment = new UsersListFragment();
-			fragment.setArguments(bundle);
+			fragment.setArguments(extras);
 			dual_pane_activity.showAtPane(DualPaneActivity.PANE_LEFT, fragment, true);
 		} else {
 			final Uri.Builder builder = new Uri.Builder();
 			builder.scheme(SCHEME_TWIDERE);
 			builder.authority(AUTHORITY_USERS);
 			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
-			intent.putExtras(bundle);
+			intent.putExtras(extras);
+			setActivityScreenshot(activity, intent);
 			activity.startActivity(intent);
 		}
 	}
@@ -3400,7 +3474,9 @@ public final class Utils implements Constants {
 			if (screen_name != null) {
 				builder.appendQueryParameter(QUERY_PARAM_SCREEN_NAME, screen_name);
 			}
-			activity.startActivity(new Intent(Intent.ACTION_VIEW, builder.build()));
+			final Intent intent = new Intent(Intent.ACTION_VIEW, builder.build());
+			setActivityScreenshot(activity, intent);
+			activity.startActivity(intent);
 		}
 
 	}
@@ -3460,13 +3536,9 @@ public final class Utils implements Constants {
 		if (list == null) return;
 		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
 			list.setSelectionFromTop(position, offset);
-			list.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(),
-					MotionEvent.ACTION_CANCEL, 0, 0, 0));
+			stopListView(list);
 		} else {
-			list.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(),
-					MotionEvent.ACTION_DOWN, 0, 0, 0));
-			list.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(),
-					MotionEvent.ACTION_UP, 0, 0, 0));
+			stopListView(list);
 			list.setSelectionFromTop(position, offset);
 		}
 	}
@@ -3496,6 +3568,12 @@ public final class Utils implements Constants {
 	public static void scrollListToTop(final PLAListView list) {
 		if (list == null) return;
 		scrollListToPosition(list, 0);
+	}
+
+	public static void setActivityScreenshot(final Activity activity, final Intent target) {
+		final byte[] encoded_screenshot = getEncodedActivityScreenshot(activity, View.DRAWING_CACHE_QUALITY_LOW,
+				Bitmap.CompressFormat.JPEG, 60);
+		target.putExtra(EXTRA_ACTIVITY_SCREENSHOT_ENCODED, encoded_screenshot);
 	}
 
 	public static void setMenuForStatus(final Context context, final Menu menu, final ParcelableStatus status) {
@@ -3528,14 +3606,23 @@ public final class Utils implements Constants {
 				favorite.setTitle(R.string.favorite);
 			}
 		}
+		final MenuItem more_item = menu.findItem(R.id.more_submenu);
+		final Menu more_submenu = more_item != null && more_item.hasSubMenu() ? more_item.getSubMenu() : menu;
+		more_submenu.removeGroup(MENU_GROUP_STATUS_EXTENSION);
 		final Intent extension_intent = new Intent(INTENT_ACTION_EXTENSION_OPEN_STATUS);
 		final Bundle extension_extras = new Bundle();
 		extension_extras.putParcelable(EXTRA_STATUS, status);
 		extension_intent.putExtras(extension_extras);
-		final MenuItem more_submenu = menu.findItem(R.id.more_submenu);
-		final Menu menu_to_add = more_submenu != null ? more_submenu.getSubMenu() : menu;
-		menu_to_add.removeGroup(MENU_GROUP_STATUS_EXTENSION);
-		addIntentToMenu(context, menu_to_add, extension_intent, MENU_GROUP_STATUS_EXTENSION);
+		addIntentToMenu(context, more_submenu, extension_intent, MENU_GROUP_STATUS_EXTENSION);
+		final MenuItem share_item = menu.findItem(R.id.share_submenu);
+		final Menu share_submenu = share_item != null && share_item.hasSubMenu() ? share_item.getSubMenu() : null;
+		if (share_submenu != null) {
+			final Intent share_intent = new Intent(Intent.ACTION_SEND);
+			share_intent.setType("text/plain");
+			share_intent.putExtra(Intent.EXTRA_TEXT, "@" + status.user_screen_name + ": " + status.text_plain);
+			share_submenu.removeGroup(MENU_GROUP_STATUS_SHARE);
+			addIntentToMenu(context, share_submenu, share_intent, MENU_GROUP_STATUS_SHARE);
+		}
 	}
 
 	public static void setMenuItemAvailability(final Menu menu, final int id, final boolean available) {
@@ -3741,6 +3828,19 @@ public final class Utils implements Constants {
 	public static void showWarnMessage(final Context context, final int resId, final boolean long_message) {
 		if (context == null) return;
 		showWarnMessage(context, context.getText(resId), long_message);
+	}
+
+	public static void stopListView(final ListView list) {
+		if (list == null) return;
+		if (Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN) {
+			list.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(),
+					MotionEvent.ACTION_CANCEL, 0, 0, 0));
+		} else {
+			list.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(),
+					MotionEvent.ACTION_DOWN, 0, 0, 0));
+			list.dispatchTouchEvent(MotionEvent.obtain(SystemClock.uptimeMillis(), SystemClock.uptimeMillis(),
+					MotionEvent.ACTION_UP, 0, 0, 0));
+		}
 	}
 
 	public static String trim(final String str) {

@@ -45,7 +45,7 @@ import org.mariotaku.gallery3d.util.GalleryUtils;
 import org.mariotaku.gallery3d.util.ThreadPool;
 import org.mariotaku.twidere.Constants;
 import org.mariotaku.twidere.R;
-import org.mariotaku.twidere.activity.TwidereSwipeBackActivity;
+import org.mariotaku.twidere.activity.support.TwidereSwipeBackActivity;
 import org.mariotaku.twidere.util.SaveImageTask;
 import org.mariotaku.twidere.util.Utils;
 
@@ -310,7 +310,7 @@ public final class ImageViewerGLActivity extends TwidereSwipeBackActivity implem
 	protected void onCreate(final Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.image_viewer_gl);
-		setOverrideExitAniamtion(false);
+//		setOverrideExitAniamtion(false);
 		mActionBar = getActionBar();
 		mActionBar.setDisplayHomeAsUpEnabled(true);
 		mActionBar.addOnMenuVisibilityListener(this);

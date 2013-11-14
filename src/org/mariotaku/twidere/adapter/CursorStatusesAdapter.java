@@ -59,14 +59,7 @@ import java.util.Locale;
 
 public class CursorStatusesAdapter extends SimpleCursorAdapter implements IStatusesAdapter<Cursor>, OnClickListener {
 
-	public static final String[] CURSOR_COLS = new String[] { Statuses._ID, Statuses.ACCOUNT_ID, Statuses.STATUS_ID,
-			Statuses.USER_ID, Statuses.STATUS_TIMESTAMP, Statuses.TEXT_HTML, Statuses.TEXT_PLAIN, Statuses.USER_NAME,
-			Statuses.USER_SCREEN_NAME, Statuses.USER_PROFILE_IMAGE_URL, Statuses.IN_REPLY_TO_STATUS_ID,
-			Statuses.IN_REPLY_TO_USER_ID, Statuses.IN_REPLY_TO_USER_NAME, Statuses.IN_REPLY_TO_USER_SCREEN_NAME,
-			Statuses.LOCATION, Statuses.IS_RETWEET, Statuses.RETWEET_COUNT, Statuses.RETWEET_ID,
-			Statuses.RETWEETED_BY_USER_ID, Statuses.RETWEETED_BY_USER_NAME, Statuses.RETWEETED_BY_USER_SCREEN_NAME,
-			Statuses.IS_FAVORITE, Statuses.IS_PROTECTED, Statuses.IS_VERIFIED, Statuses.IS_GAP,
-			Statuses.IS_POSSIBLY_SENSITIVE, Statuses.SOURCE, Statuses.TEXT_UNESCAPED, Statuses.MEDIA_LINK };
+	public static final String[] CURSOR_COLS = Statuses.COLUMNS;
 
 	private final Context mContext;
 	private final ImageLoaderWrapper mImageLoader;
@@ -256,12 +249,17 @@ public class CursorStatusesAdapter extends SimpleCursorAdapter implements IStatu
 	}
 
 	@Override
+	public long getLastStatusId() {
+		final Cursor c = getCursor();
+		if (c == null || c.isClosed() || !c.moveToLast()) return -1;
+		return c.getLong(mIndices.status_id);
+	}
+
+	@Override
 	public ParcelableStatus getStatus(final int position) {
 		final Cursor c = getCursor();
 		if (c == null || c.isClosed() || !c.moveToPosition(position)) return null;
-		final long account_id = c.getLong(mIndices.account_id);
-		final long status_id = c.getLong(mIndices.status_id);
-		return findStatusInDatabases(mContext, account_id, status_id);
+		return new ParcelableStatus(c, mIndices);
 	}
 
 	@Override
@@ -471,18 +469,13 @@ public class CursorStatusesAdapter extends SimpleCursorAdapter implements IStatu
 	private void rebuildFilterInfo() {
 		final Cursor c = getCursor();
 		if (c != null && !c.isClosed() && mIndices != null && c.getCount() > 0) {
-			if (c.getCount() > 0) {
-				c.moveToLast();
-				final long user_id = mFilterIgnoreUser ? -1 : c.getLong(mIndices.user_id);
-				final String text_plain = mFilterIgnoreTextPlain ? null : c.getString(mIndices.text_plain);
-				final String text_html = mFilterIgnoreTextHtml ? null : c.getString(mIndices.text_html);
-				final String source = mFilterIgnoreSource ? null : c.getString(mIndices.source);
-				final long retweeted_by_id = mFilterRetweetedById ? -1 : c.getLong(mIndices.retweeted_by_user_id);
-				;
-				mIsLastItemFiltered = isFiltered(mDatabase, user_id, text_plain, text_html, source, retweeted_by_id);
-			} else {
-				mIsLastItemFiltered = false;
-			}
+			c.moveToLast();
+			final long user_id = mFilterIgnoreUser ? -1 : c.getLong(mIndices.user_id);
+			final String text_plain = mFilterIgnoreTextPlain ? null : c.getString(mIndices.text_plain);
+			final String text_html = mFilterIgnoreTextHtml ? null : c.getString(mIndices.text_html);
+			final String source = mFilterIgnoreSource ? null : c.getString(mIndices.source);
+			final long retweeted_by_id = mFilterRetweetedById ? -1 : c.getLong(mIndices.retweeted_by_user_id);
+			mIsLastItemFiltered = isFiltered(mDatabase, user_id, text_plain, text_html, source, retweeted_by_id);
 		} else {
 			mIsLastItemFiltered = false;
 		}

@@ -63,18 +63,20 @@ import com.readystatesoftware.viewbadger.BadgeView;
 import edu.ucdavis.earlybird.ProfilingUtil;
 
 import org.mariotaku.twidere.R;
-import org.mariotaku.twidere.adapter.SupportTabsAdapter;
-import org.mariotaku.twidere.fragment.DirectMessagesFragment;
-import org.mariotaku.twidere.fragment.HomeTimelineFragment;
-import org.mariotaku.twidere.fragment.MentionsFragment;
-import org.mariotaku.twidere.fragment.TrendsSuggectionsFragment;
+import org.mariotaku.twidere.activity.support.DualPaneActivity;
+import org.mariotaku.twidere.activity.support.SignInActivity;
+import org.mariotaku.twidere.adapter.support.SupportTabsAdapter;
 import org.mariotaku.twidere.fragment.iface.IBaseFragment;
 import org.mariotaku.twidere.fragment.iface.IBasePullToRefreshFragment;
 import org.mariotaku.twidere.fragment.iface.RefreshScrollTopInterface;
 import org.mariotaku.twidere.fragment.iface.SupportFragmentCallback;
+import org.mariotaku.twidere.fragment.support.DirectMessagesFragment;
+import org.mariotaku.twidere.fragment.support.HomeTimelineFragment;
+import org.mariotaku.twidere.fragment.support.MentionsFragment;
+import org.mariotaku.twidere.fragment.support.TrendsSuggectionsFragment;
 import org.mariotaku.twidere.model.SupportTabSpec;
+import org.mariotaku.twidere.task.AsyncTask;
 import org.mariotaku.twidere.util.ArrayUtils;
-import org.mariotaku.twidere.util.AsyncTask;
 import org.mariotaku.twidere.util.AsyncTwitterWrapper;
 import org.mariotaku.twidere.util.MathUtils;
 import org.mariotaku.twidere.util.MultiSelectEventHandler;
@@ -100,9 +102,8 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 	private ExtendedViewPager mViewPager;
 	private TabPageIndicator mIndicator;
 	private SlidingMenu mSlidingMenu;
-	private View mActionsActionView, mActionsButtonLayout;
+	private View mActionsActionView, mActionsButtonLayout, mEmptyTabHint;
 
-	private boolean mDisplayAppIcon;
 	private boolean mBottomActionsButton;
 
 	private Fragment mCurrentVisibleFragment;
@@ -121,6 +122,7 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 				updateActionsButton();
 			} else if (BROADCAST_ACCOUNT_LIST_DATABASE_UPDATED.equals(action)) {
 				notifyAccountsChanged();
+				updateUnreadCount();
 			} else if (BROADCAST_UNREAD_COUNT_UPDATED.equals(action)) {
 				updateUnreadCount();
 			}
@@ -170,14 +172,13 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		super.onBackStackChanged();
 		if (!isDualPaneMode()) return;
 		final FragmentManager fm = getSupportFragmentManager();
-		final Fragment left_pane_fragment = fm.findFragmentById(PANE_LEFT);
-		final boolean left_pane_used = left_pane_fragment != null && left_pane_fragment.isAdded();
-		setPagingEnabled(!left_pane_used);
+		setPagingEnabled(!isLeftPaneUsed());
 		final int count = fm.getBackStackEntryCount();
 		if (count == 0) {
 			showLeftPane();
 		}
 		updateActionsButton();
+		updateSlidingMenuTouchMode();
 	}
 
 	@Override
@@ -208,6 +209,7 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		super.onContentChanged();
 		mViewPager = (ExtendedViewPager) findViewById(R.id.main);
 		mActionsButtonLayout = findViewById(R.id.actions_button);
+		mEmptyTabHint = findViewById(R.id.empty_tab_hint);
 		if (mSlidingMenu == null) {
 			mSlidingMenu = new SlidingMenu(this);
 		}
@@ -342,7 +344,7 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		mMultiSelectHandler = new MultiSelectEventHandler(this);
 		mMultiSelectHandler.dispatchOnCreate();
 		final Resources res = getResources();
-		mDisplayAppIcon = res.getBoolean(R.bool.home_display_icon);
+		final boolean home_display_icon = res.getBoolean(R.bool.home_display_icon);
 		super.onCreate(savedInstanceState);
 		final long[] account_ids = getAccountIds(this);
 		if (account_ids.length == 0) {
@@ -364,12 +366,7 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		final int initial_tab = handleIntent(intent, savedInstanceState == null);
 		mActionBar = getActionBar();
 		mActionBar.setCustomView(R.layout.home_tabs);
-		mActionBar.setDisplayShowTitleEnabled(false);
-		mActionBar.setDisplayShowCustomEnabled(true);
-		mActionBar.setDisplayShowHomeEnabled(mDisplayAppIcon);
-		if (mDisplayAppIcon) {
-			mActionBar.setHomeButtonEnabled(true);
-		}
+
 		final View view = mActionBar.getCustomView();
 		mIndicator = (TabPageIndicator) view.findViewById(android.R.id.tabs);
 		mActionsActionView = view.findViewById(R.id.actions_item);
@@ -383,6 +380,12 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		mActionsActionView.setOnClickListener(this);
 		mActionsButtonLayout.setOnClickListener(this);
 		initTabs();
+		final boolean tabs_not_empty = mPagerAdapter.getCount() != 0;
+		mEmptyTabHint.setVisibility(tabs_not_empty ? View.GONE : View.VISIBLE);
+		mActionBar.setDisplayShowHomeEnabled(home_display_icon || !tabs_not_empty);
+		mActionBar.setHomeButtonEnabled(home_display_icon || !tabs_not_empty);
+		mActionBar.setDisplayShowTitleEnabled(!tabs_not_empty);
+		mActionBar.setDisplayShowCustomEnabled(tabs_not_empty);
 		setTabPosition(initial_tab);
 		if (refresh_on_start && savedInstanceState == null) {
 			mTwitterWrapper.refreshAll();
@@ -563,6 +566,7 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 	}
 
 	private void setupSlidingMenu() {
+		if (mSlidingMenu == null) return;
 		mSlidingMenu.setMode(SlidingMenu.LEFT);
 		mSlidingMenu.setShadowWidthRes(R.dimen.default_sliding_menu_shadow_width);
 		mSlidingMenu.setShadowDrawable(R.drawable.shadow_holo);
@@ -635,7 +639,8 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 	private void updateSlidingMenuTouchMode() {
 		if (mViewPager == null || mSlidingMenu == null) return;
 		final int position = mViewPager.getCurrentItem();
-		final int mode = position == 0 ? SlidingMenu.TOUCHMODE_FULLSCREEN : SlidingMenu.TOUCHMODE_MARGIN;
+		final int mode = position == 0 && !isLeftPaneUsed() ? SlidingMenu.TOUCHMODE_FULLSCREEN
+				: SlidingMenu.TOUCHMODE_MARGIN;
 		mSlidingMenu.setTouchModeAbove(mode);
 	}
 
@@ -679,7 +684,7 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 					badge.setCount(0);
 					badge.hide();
 				} else {
-					badge.setText(null);
+					badge.setText("\u0387");
 					badge.show();
 				}
 			}

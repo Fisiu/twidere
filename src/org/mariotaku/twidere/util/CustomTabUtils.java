@@ -14,17 +14,17 @@ import android.support.v4.app.Fragment;
 
 import org.mariotaku.twidere.Constants;
 import org.mariotaku.twidere.R;
-import org.mariotaku.twidere.fragment.ActivitiesAboutMeFragment;
-import org.mariotaku.twidere.fragment.ActivitiesByFriendsFragment;
-import org.mariotaku.twidere.fragment.DirectMessagesFragment;
-import org.mariotaku.twidere.fragment.HomeTimelineFragment;
-import org.mariotaku.twidere.fragment.MentionsFragment;
-import org.mariotaku.twidere.fragment.MultiColumnHomeTimelineFragment;
-import org.mariotaku.twidere.fragment.SearchStatusesFragment;
-import org.mariotaku.twidere.fragment.TrendsSuggectionsFragment;
-import org.mariotaku.twidere.fragment.UserFavoritesFragment;
-import org.mariotaku.twidere.fragment.UserListTimelineFragment;
-import org.mariotaku.twidere.fragment.UserTimelineFragment;
+import org.mariotaku.twidere.fragment.support.ActivitiesAboutMeFragment;
+import org.mariotaku.twidere.fragment.support.ActivitiesByFriendsFragment;
+import org.mariotaku.twidere.fragment.support.DirectMessagesFragment;
+import org.mariotaku.twidere.fragment.support.HomeTimelineFragment;
+import org.mariotaku.twidere.fragment.support.MentionsFragment;
+import org.mariotaku.twidere.fragment.support.MultiColumnHomeTimelineFragment;
+import org.mariotaku.twidere.fragment.support.SearchStatusesFragment;
+import org.mariotaku.twidere.fragment.support.TrendsSuggectionsFragment;
+import org.mariotaku.twidere.fragment.support.UserFavoritesFragment;
+import org.mariotaku.twidere.fragment.support.UserListTimelineFragment;
+import org.mariotaku.twidere.fragment.support.UserTimelineFragment;
 import org.mariotaku.twidere.model.CustomTabConfiguration;
 import org.mariotaku.twidere.model.SupportTabSpec;
 import org.mariotaku.twidere.provider.TweetStore.Tabs;
@@ -112,7 +112,7 @@ public class CustomTabUtils implements Constants {
 		return null;
 	}
 
-	public static SupportTabSpec getAddedHomeTabAt(final Context context, final int position) {
+	public static SupportTabSpec getAddedTabAt(final Context context, final int position) {
 		if (context == null || position < 0) return null;
 		final ContentResolver resolver = context.getContentResolver();
 		final Cursor cur = resolver.query(Tabs.CONTENT_URI, Tabs.COLUMNS, Tabs.POSITION + " = " + position, null,
@@ -131,7 +131,7 @@ public class CustomTabUtils implements Constants {
 			args.putInt(EXTRA_TAB_POSITION, position);
 			final Class<? extends Fragment> fragment = conf.getFragmentClass();
 			return new SupportTabSpec(name != null ? name : getTabTypeName(context, type), getTabIconObject(icon_type),
-					fragment, args, position);
+					type, fragment, args, position);
 		} finally {
 			cur.close();
 		}
@@ -211,7 +211,7 @@ public class CustomTabUtils implements Constants {
 				args.putInt(EXTRA_TAB_POSITION, position);
 				final Class<? extends Fragment> fragment = conf.getFragmentClass();
 				tabs.add(new SupportTabSpec(name != null ? name : getTabTypeName(context, type),
-						getTabIconObject(icon_type), fragment, args, position));
+						getTabIconObject(icon_type), type, fragment, args, position));
 			}
 			cur.moveToNext();
 		}
