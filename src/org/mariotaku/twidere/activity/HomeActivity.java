@@ -140,6 +140,10 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 		return mCurrentVisibleFragment;
 	}
 
+	public SlidingMenu getSlidingMenu() {
+		return mSlidingMenu;
+	}
+
 	public void notifyAccountsChanged() {
 		if (mPreferences == null) return;
 		final long[] account_ids = getAccountIds(this);
@@ -333,6 +337,17 @@ public class HomeActivity extends DualPaneActivity implements OnClickListener, O
 	@Override
 	protected int getNormalLayoutRes() {
 		return R.layout.home;
+	}
+
+	@Override
+	protected void onActivityResult(final int requestCode, final int resultCode, final Intent data) {
+		switch (requestCode) {
+			case REQUEST_SWIPEBACK_ACTIVITY: {
+				closeAccountsDrawer();
+				return;
+			}
+		}
+		super.onActivityResult(requestCode, resultCode, data);
 	}
 
 	/** Called when the activity is first created. */

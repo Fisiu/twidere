@@ -192,12 +192,7 @@ abstract class BaseUsersListFragment extends BasePullToRefreshListFragment imple
 	@Override
 	public boolean onMenuItemClick(final MenuItem item) {
 		if (mSelectedUser == null) return false;
-		final ParcelableUser user = mSelectedUser;
 		switch (item.getItemId()) {
-			case MENU_VIEW_PROFILE: {
-				openUserProfile(getActivity(), user);
-				break;
-			}
 			default: {
 				if (item.getIntent() != null) {
 					try {
@@ -247,6 +242,14 @@ abstract class BaseUsersListFragment extends BasePullToRefreshListFragment imple
 		super.onStop();
 	}
 
+	protected ParcelableUser getSelectedUser() {
+		return mSelectedUser;
+	}
+
+	protected int getUserMenuResource() {
+		return R.menu.action_user_list;
+	}
+
 	protected abstract Loader<List<ParcelableUser>> newLoaderInstance(Context context, Bundle args);
 
 	@Override
@@ -283,7 +286,7 @@ abstract class BaseUsersListFragment extends BasePullToRefreshListFragment imple
 			mPopupMenu.dismiss();
 		}
 		mPopupMenu = PopupMenu.getInstance(getActivity(), view);
-		mPopupMenu.inflate(R.menu.action_user);
+		mPopupMenu.inflate(getUserMenuResource());
 		final Menu menu = mPopupMenu.getMenu();
 		final Intent extensions_intent = new Intent(INTENT_ACTION_EXTENSION_OPEN_USER);
 		final Bundle extensions_extras = new Bundle();

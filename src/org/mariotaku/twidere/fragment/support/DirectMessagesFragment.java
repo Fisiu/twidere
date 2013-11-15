@@ -134,7 +134,11 @@ public class DirectMessagesFragment extends BasePullToRefreshListFragment implem
 		final Uri uri = DirectMessages.ConversationsEntry.CONTENT_URI;
 		final long account_id = getAccountId();
 		final long[] account_ids = account_id > 0 ? new long[] { account_id } : getActivatedAccountIds(getActivity());
-		setEmptyText(account_ids.length == 0 ? getString(R.string.no_account_selected) : null);
+		final boolean no_account_selected = account_ids.length == 0;
+		setEmptyText(no_account_selected ? getString(R.string.no_account_selected) : null);
+		if (!no_account_selected) {
+			getListView().setEmptyView(null);
+		}
 		final Where account_where = Where.in(new Column(Statuses.ACCOUNT_ID), new RawItemArray(account_ids));
 		return new CursorLoader(getActivity(), uri, null, account_where.getSQL(), null, null);
 	}
@@ -146,6 +150,8 @@ public class DirectMessagesFragment extends BasePullToRefreshListFragment implem
 		final long conversation_id = mAdapter.getConversationId(pos);
 		final long account_id = mAdapter.getAccountId(pos);
 		final String screen_name = mAdapter.getScreenName(pos);
+		mReadPositions.add(pos);
+		removeUnreadCounts();
 		if (conversation_id > 0 && account_id > 0) {
 			openDirectMessagesConversation(getActivity(), account_id, conversation_id, screen_name);
 		}

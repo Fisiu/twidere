@@ -64,6 +64,11 @@ public class MapViewerActivity extends TwidereSwipeBackActivity implements Const
 	}
 
 	@Override
+	protected int getThemeResource() {
+		return R.style.Theme_Twidere_Viewer;
+	}
+
+	@Override
 	protected void onCreate(final Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		getActionBar().setDisplayHomeAsUpEnabled(true);
