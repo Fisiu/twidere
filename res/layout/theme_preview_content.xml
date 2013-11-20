@@ -2,7 +2,8 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
 	android:id="@+id/theme_preview_content"
 	android:layout_width="match_parent"
-	android:layout_height="wrap_content">
+	android:layout_height="wrap_content"
+	android:background="@drawable/nyan_stars_background">
 
 	<View
 		android:id="@+id/theme_preview_window_background"
@@ -15,6 +16,8 @@
 		android:id="@+id/theme_preview_window_content"
 		android:layout_width="match_parent"
 		android:layout_height="wrap_content"
+		android:layout_alignParentBottom="true"
+		android:layout_alignParentTop="true"
 		android:orientation="vertical">
 
 		<LinearLayout
@@ -25,11 +28,13 @@
 			android:orientation="horizontal">
 
 			<ImageView
-				android:layout_width="?android:actionBarSize"
+				android:layout_width="wrap_content"
 				android:layout_height="match_parent"
+				android:layout_marginBottom="4dp"
+				android:layout_marginTop="4dp"
+				android:adjustViewBounds="true"
 				android:contentDescription="@string/app_name"
-				android:paddingBottom="6dp"
-				android:paddingTop="6dp"
+				android:padding="4dp"
 				android:scaleType="centerInside"
 				android:src="@drawable/ic_launcher"/>
 
@@ -44,59 +49,7 @@
 				android:textAppearance="?android:textAppearanceMedium"/>
 		</LinearLayout>
 
-		<RelativeLayout
-			android:layout_width="match_parent"
-			android:layout_height="wrap_content">
-
-			<include
-				android:id="@+id/status_content"
-				layout="@layout/status_content"/>
-
-			<View
-				android:id="@+id/theme_preview_window_content_overlay"
-				android:layout_width="match_parent"
-				android:layout_height="wrap_content"
-				android:layout_alignBottom="@+id/status_content"
-				android:layout_alignTop="@+id/status_content"/>
-		</RelativeLayout>
-
-		<TableRow
-			android:id="@+id/actionbar_split"
-			android:layout_width="match_parent"
-			android:layout_height="?android:actionBarSize">
-
-			<ImageView
-				android:layout_width="wrap_content"
-				android:layout_height="match_parent"
-				android:layout_weight="1"
-				android:contentDescription="@string/reply"
-				android:scaleType="centerInside"
-				android:src="@drawable/ic_menu_reply"/>
-
-			<ImageView
-				android:layout_width="wrap_content"
-				android:layout_height="match_parent"
-				android:layout_weight="1"
-				android:contentDescription="@string/retweet"
-				android:scaleType="centerInside"
-				android:src="@drawable/ic_menu_retweet"/>
-
-			<ImageView
-				android:layout_width="wrap_content"
-				android:layout_height="match_parent"
-				android:layout_weight="1"
-				android:contentDescription="@string/favorite"
-				android:scaleType="centerInside"
-				android:src="@drawable/ic_menu_star"/>
-
-			<ImageView
-				android:layout_width="wrap_content"
-				android:layout_height="match_parent"
-				android:layout_weight="1"
-				android:contentDescription="@string/more"
-				android:scaleType="centerInside"
-				android:src="@drawable/ic_menu_more"/>
-		</TableRow>
+		<include layout="@layout/theme_preview_status_content"/>
 	</LinearLayout>
 
 </RelativeLayout>

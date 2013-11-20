@@ -4,9 +4,14 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.drawable.Drawable;
+import android.graphics.drawable.LayerDrawable;
+import android.graphics.drawable.TransitionDrawable;
 import android.util.AttributeSet;
+import android.view.ViewConfiguration;
 
 import org.mariotaku.twidere.R;
+import org.mariotaku.twidere.util.ArrayUtils;
+import org.mariotaku.twidere.util.ThemeUtils;
 
 public class CardItemLinearLayout extends ColorLabelLinearLayout {
 
@@ -22,8 +27,10 @@ public class CardItemLinearLayout extends ColorLabelLinearLayout {
 
 	public CardItemLinearLayout(final Context context, final AttributeSet attrs, final int defStyle) {
 		super(context, attrs, defStyle);
+		if (isInEditMode()) return;
 		final TypedArray a = context.obtainStyledAttributes(attrs, new int[] { R.attr.cardItemSelector });
 		setItemSelector(a.getDrawable(0));
+		ThemeUtils.applyThemeAlphaToDrawable(context, getBackground());
 		a.recycle();
 	}
 
@@ -54,7 +61,19 @@ public class CardItemLinearLayout extends ColorLabelLinearLayout {
 	protected void drawableStateChanged() {
 		super.drawableStateChanged();
 		if (mItemSelector != null && mItemSelector.isStateful()) {
-			mItemSelector.setState(getDrawableState());
+			final int[] state = getDrawableState();
+			mItemSelector.setState(state);
+			final Drawable layer = mItemSelector instanceof LayerDrawable ? ((LayerDrawable) mItemSelector)
+					.findDrawableByLayerId(R.id.card_item_selector) : null;
+			final Drawable current = layer != null ? layer.getCurrent() : mItemSelector.getCurrent();
+			if (current instanceof TransitionDrawable) {
+				final TransitionDrawable td = (TransitionDrawable) current;
+				if (ArrayUtils.contains(state, android.R.attr.state_pressed)) {
+					td.startTransition(ViewConfiguration.getLongPressTimeout());
+				} else {
+					td.resetTransition();
+				}
+			}
 		}
 	}
 

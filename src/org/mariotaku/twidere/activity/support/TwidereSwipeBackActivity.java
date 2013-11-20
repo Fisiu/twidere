@@ -20,35 +20,22 @@
 package org.mariotaku.twidere.activity.support;
 
 import android.annotation.SuppressLint;
-import android.content.res.TypedArray;
 import android.os.Bundle;
+
+import org.mariotaku.twidere.util.ThemeUtils;
 
 @SuppressLint("Registered")
 public class TwidereSwipeBackActivity extends BaseSupportThemedSwipeBackActivity {
 
-	private int activityCloseEnterAnimation;
-	private int activityCloseExitAnimation;
-
 	@Override
 	public void finish() {
 		super.finish();
-		overridePendingTransition(activityCloseEnterAnimation, activityCloseExitAnimation);
+		ThemeUtils.overrideActivityCloseAnimation(this);
 	}
 
 	@Override
 	protected void onCreate(final Bundle savedInstanceState) {
-		TypedArray activityStyle = getTheme().obtainStyledAttributes(new int[] { android.R.attr.windowAnimationStyle });
-		final int windowAnimationStyleResId = activityStyle.getResourceId(0, 0);
-		activityStyle.recycle();
-
-		// Now retrieve the resource ids of the actual animations used in the
-		// animation style pointed to by
-		// the window animation resource id.
-		activityStyle = getTheme().obtainStyledAttributes(windowAnimationStyleResId,
-				new int[] { android.R.attr.activityCloseEnterAnimation, android.R.attr.activityCloseExitAnimation });
-		activityCloseEnterAnimation = activityStyle.getResourceId(0, 0);
-		activityCloseExitAnimation = activityStyle.getResourceId(1, 0);
-		activityStyle.recycle();
+		ThemeUtils.overrideActivityOpenAnimation(this);
 		super.onCreate(savedInstanceState);
 	}
 }

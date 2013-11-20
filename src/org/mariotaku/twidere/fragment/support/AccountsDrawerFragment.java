@@ -30,12 +30,14 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ExpandableListView;
 import android.widget.ExpandableListView.OnChildClickListener;
+import android.widget.ExpandableListView.OnGroupCollapseListener;
 
 import org.mariotaku.twidere.R;
 import org.mariotaku.twidere.activity.FiltersActivity;
 import org.mariotaku.twidere.activity.HomeActivity;
 import org.mariotaku.twidere.activity.SettingsActivity;
 import org.mariotaku.twidere.activity.support.ColorSelectorActivity;
+import org.mariotaku.twidere.activity.support.DraftsActivity;
 import org.mariotaku.twidere.activity.support.SignInActivity;
 import org.mariotaku.twidere.activity.support.UserProfileEditorActivity;
 import org.mariotaku.twidere.adapter.AccountsDrawerAdapter;
@@ -49,9 +51,11 @@ import org.mariotaku.twidere.provider.TweetStore.DirectMessages.Inbox;
 import org.mariotaku.twidere.provider.TweetStore.DirectMessages.Outbox;
 import org.mariotaku.twidere.provider.TweetStore.Mentions;
 import org.mariotaku.twidere.provider.TweetStore.Statuses;
+import org.mariotaku.twidere.util.ThemeUtils;
 
 public class AccountsDrawerFragment extends BaseSupportFragment implements LoaderCallbacks<Cursor>,
-		OnChildClickListener, OnSharedPreferenceChangeListener, OnAccountActivateStateChangeListener {
+		OnChildClickListener, OnSharedPreferenceChangeListener, OnAccountActivateStateChangeListener,
+		OnGroupCollapseListener {
 
 	private static final String FRAGMENT_TAG_ACCOUNT_DELETION = "account_deletion";
 	private ContentResolver mResolver;
@@ -88,6 +92,7 @@ public class AccountsDrawerFragment extends BaseSupportFragment implements Loade
 		mAdapter = new AccountsDrawerAdapter(getView().getContext());
 		mAdapter.setOnAccountActivateStateChangeListener(this);
 		mListView.setAdapter(mAdapter);
+		mListView.setOnGroupCollapseListener(this);
 		mListView.setOnChildClickListener(this);
 		mPreferences.registerOnSharedPreferenceChangeListener(this);
 		getLoaderManager().initLoader(0, null, this);
@@ -194,6 +199,12 @@ public class AccountsDrawerFragment extends BaseSupportFragment implements Loade
 						startActivity(intent);
 						break;
 					}
+					case MENU_DRAFTS: {
+						final Intent intent = new Intent(INTENT_ACTION_DRAFTS);
+						intent.setClass(getActivity(), DraftsActivity.class);
+						startActivity(intent);
+						break;
+					}
 					case MENU_FILTERS: {
 						final Intent intent = new Intent(getActivity(), FiltersActivity.class);
 						intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
@@ -221,10 +232,15 @@ public class AccountsDrawerFragment extends BaseSupportFragment implements Loade
 
 	@Override
 	public View onCreateView(final LayoutInflater inflater, final ViewGroup container, final Bundle savedInstanceState) {
-		final Context theme = new ContextThemeWrapper(getActivity(), R.style.Theme_Twidere_Drawer_Dark);
+		final Context theme = new ContextThemeWrapper(getActivity(), ThemeUtils.getDrawerThemeResource(getActivity()));
 		final View view = LayoutInflater.from(theme).inflate(R.layout.accounts_drawer, container, false);
 		mListView = (ExpandableListView) view.findViewById(android.R.id.list);
 		return view;
+	}
+
+	@Override
+	public void onGroupCollapse(final int groupPosition) {
+		mListView.expandGroup(groupPosition, false);
 	}
 
 	@Override
